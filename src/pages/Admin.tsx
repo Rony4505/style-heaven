@@ -1115,7 +1115,7 @@ function SettingsTab() {
           onChange={(e) => setSettings({ ...settings, defaultShipping: Number(e.target.value) })}
         />
       </label>
-      <div className="table-wrap">
+      <div className="table-wrap charge-table">
         <table className="admin-table">
           <thead>
             <tr>
