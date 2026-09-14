@@ -49,7 +49,10 @@ export function validatePhone(dial: string, local: string) {
   let n = digitsOnly(local)
   if (!n) return false
   if (n.startsWith(dial)) n = n.slice(dial.length)
-  if (dial === '880' && n.startsWith('0')) n = n.slice(1)
+  if (n.startsWith('0')) n = n.slice(1)
+  if (dial === '880') return /^1[3-9]\d{8}$/.test(n)
+  if (dial === '91') return /^[6-9]\d{9}$/.test(n)
+  if (dial === '1') return /^[2-9]\d{9}$/.test(n)
   if (!country) return n.length >= 8 && n.length <= 15
   return n.length >= country.min && n.length <= country.max
 }
