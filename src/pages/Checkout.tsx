@@ -1,36 +1,32 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import {
-  BadgeCheck,
-  FileText,
-  Lock,
-  MapPin,
-  RefreshCcw,
-  Shield,
-  CreditCard,
-} from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { BadgeCheck, CreditCard, FileText, Lock, MapPin, RefreshCcw, Shield } from 'lucide-react'
 import { DISTRICTS } from '../data/districts'
-import { useCartLines, useStore } from '../store'
-import { formatBdt } from '../types'
+import { COUNTRIES, validatePhone } from '../data/countries'
+import { activeCampaigns, orderItemsFromCart, useCartLines, useStore } from '../store'
+import { formatBdt, productImage, type PaymentMethod } from '../types'
 import { Chrome } from '../components/Chrome'
+import { tx } from '../i18n'
 
-const METHODS = [
-  { id: 'card', label: 'Visa / Mastercard', kind: 'card' },
-  { id: 'bkash', label: 'bKash', kind: 'wallet' },
-  { id: 'nagad', label: 'Nagad', kind: 'wallet' },
-  { id: 'ssl', label: 'SSLCommerz Secure Gateway', kind: 'gateway' },
-] as const
+const METHODS: { id: PaymentMethod; kind: 'card' | 'wallet' | 'cod' }[] = [
+  { id: 'Visa / Mastercard', kind: 'card' },
+  { id: 'bKash', kind: 'wallet' },
+  { id: 'Nagad', kind: 'wallet' },
+  { id: 'Cash on delivery', kind: 'cod' },
+]
 
 export function CheckoutPage() {
   const lines = useCartLines()
-  const { products, addToCart, placeOrder, toast } = useStore()
-  const navigate = useNavigate()
-  const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [method, setMethod] = useState('card')
+  const { products, placeOrder, toast, user, lang, media } = useStore()
+  const t = tx(lang)
+  const [method, setMethod] = useState<PaymentMethod>('bKash')
+  const [account, setAccount] = useState('')
   const [promo, setPromo] = useState('')
   const [applied, setApplied] = useState(0)
+  const [dial, setDial] = useState('880')
   const [form, setForm] = useState({
-    name: '',
+    name: user?.name && user.role !== 'admin' ? user.name : '',
+    email: user?.email && user.role !== 'admin' ? user.email : '',
     phone: '',
     address: '',
     city: '',
@@ -41,42 +37,82 @@ export function CheckoutPage() {
 
   const filled = useMemo(() => {
     if (lines.length) return lines
-    const fallback =
-      products.find((p) => p.name === 'Silk Charmeuse Scarf' && p.shade === 'Champagne Gold') ||
-      products.find((p) => p.price === 18500) ||
-      products[0]
+    const fallback = products[0]
     return fallback
-      ? [{ productId: fallback.id, size: fallback.sizeOptions[0], qty: 1, product: fallback }]
+      ? [
+          {
+            productId: fallback.id,
+            size: fallback.sizes[0],
+            color: fallback.colors[0],
+            qty: 1,
+            product: fallback,
+          },
+        ]
       : []
   }, [lines, products])
 
-  const subtotal = filled.reduce((sum, l) => sum + (l.product?.price ?? 0) * l.qty, 0)
+  const subtotal = filled.reduce((sum, l) => sum + (l.product?.sellingPrice ?? 0) * l.qty, 0)
   const shipping = 120
-  const tax = 0
   const discount = Math.round(subtotal * applied)
-  const total = Math.max(0, subtotal + shipping + tax - discount)
+  const total = Math.max(0, subtotal + shipping - discount)
   const first = filled[0]?.product
+  const country = COUNTRIES.find((c) => c.dial === dial)
 
   const pay = () => {
     if (!form.name || !form.phone || !form.address || !form.city || !form.district) {
-      toast('Please complete your shipping details.')
+      toast(lang === 'bn' ? 'শিপিং তথ্য পূরণ করুন।' : 'Please complete your shipping details.')
       return
     }
-    if (!lines.length && first) {
-      addToCart(first.id, first.sizeOptions[0])
+    if (!validatePhone(dial, form.phone)) {
+      toast(
+        lang === 'bn'
+          ? 'এই দেশের জন্য ফোন নম্বরটি সঠিক নয়।'
+          : `That phone number is not valid for ${country?.name ?? 'this country'}.`,
+      )
+      return
     }
-    const order = placeOrder({
-      customer: form.name,
-      payment: METHODS.find((m) => m.id === method)?.label ?? method,
+    if (method !== 'Cash on delivery' && account.replace(/\D/g, '').length < 6) {
+      toast(
+        lang === 'bn'
+          ? 'পেমেন্ট অ্যাকাউন্ট নম্বর দিন।'
+          : 'Enter the account or card number to complete payment.',
+      )
+      return
+    }
+    if (!lines.length && !first) {
+      toast('Your bag is empty.')
+      return
+    }
+    const guest = !user || user.role === 'admin'
+    placeOrder({
+      items: orderItemsFromCart(
+        filled.map((l) => ({
+          productId: l.productId,
+          size: l.size,
+          color: l.color,
+          qty: l.qty,
+        })),
+        products,
+      ),
+      subtotal,
+      shipping,
+      discount,
       total,
-      items: filled.map((l) => ({
-        name: l.product?.name ?? 'Item',
-        qty: l.qty,
-        price: l.product?.price ?? 0,
-      })),
+      payment: method,
+      paymentAccount: method === 'Cash on delivery' ? 'COD' : account,
+      customerName: guest && !user ? form.name : form.name,
+      email: form.email,
+      phone: form.phone,
+      phoneDial: dial,
+      address: form.address,
+      city: form.city,
+      district: form.district,
+      postal: form.postal,
+      country: country?.name ?? form.country,
+      guest: !user || user.role === 'admin',
+      userEmail: user && user.role !== 'admin' ? user.email : undefined,
     })
-    setStep(3)
-    navigate(`/checkout/confirmation?order=${order.id}&total=${total}`)
+    toast(lang === 'bn' ? 'অর্ডার নিশ্চিত হয়েছে।' : 'Order confirmed.')
   }
 
   return (
@@ -87,15 +123,15 @@ export function CheckoutPage() {
           <small>Bangladesh</small>
         </Link>
         <ol className="steps">
-          <li className={step === 1 ? 'on' : ''}>1. Shipping</li>
-          <li>2. Payment</li>
-          <li>3. Confirmation</li>
+          <li className="on">1. {t.shipping}</li>
+          <li>2. {t.payment}</li>
+          <li>3. {t.confirmation}</li>
         </ol>
         <div className="secure-flag">
           <Lock size={16} />
           <div>
             <strong>Secure checkout</strong>
-            <span>256-bit SSL encrypted</span>
+            <span>256-bit encrypted</span>
           </div>
         </div>
       </header>
@@ -105,39 +141,38 @@ export function CheckoutPage() {
           <h2>
             Order summary <FileText size={18} />
           </h2>
-          {first && (
-            <div className="summary-item">
+          {filled.map((line) => (
+            <div className="summary-item" key={`${line.productId}-${line.size}-${line.color}`}>
               <div className="thumb-wrap">
-                <img src={first.image} alt="" />
-                <span className="silk-badge">100% Silk</span>
+                <img src={productImage(line.product)} alt="" />
               </div>
               <div>
-                <h3>Style Heaven {first.name.replace('Signature ', '')}</h3>
+                <h3>{line.product?.name}</h3>
                 <p>
-                  {first.material} • {filled[0].size}
+                  {line.size} · {line.color}
                 </p>
-                <p>Shade: {first.shade}</p>
                 <div className="row-between">
-                  <strong>BDT {formatBdt(first.price)}</strong>
-                  <em>Qty: {filled[0].qty}</em>
+                  <strong>BDT {formatBdt(line.product?.sellingPrice ?? 0)}</strong>
+                  <em>Qty: {line.qty}</em>
                 </div>
               </div>
             </div>
-          )}
+          ))}
 
           <div className="promo">
             <span className="promo-label">◇ Have a promo code?</span>
             <div className="promo-row">
-              <input value={promo} onChange={(e) => setPromo(e.target.value)} placeholder="" />
+              <input value={promo} onChange={(e) => setPromo(e.target.value)} />
               <button
                 className="gold-btn compact"
                 onClick={() => {
-                  if (promo.trim().toUpperCase() === 'HEAVEN10') {
-                    setApplied(0.1)
-                    toast('Promo applied: 10% off')
-                  } else {
-                    toast('That code is not valid.')
-                  }
+                  const hit = activeCampaigns(media.campaigns).find(
+                    (c) => c.type === 'coupon' && c.code?.toUpperCase() === promo.trim().toUpperCase(),
+                  )
+                  if (hit) {
+                    setApplied(Number(hit.value) / 100)
+                    toast('Promo applied')
+                  } else toast('That code is not valid.')
                 }}
               >
                 Apply
@@ -147,16 +182,12 @@ export function CheckoutPage() {
 
           <dl className="totals">
             <div>
-              <dt>Subtotal</dt>
+              <dt>{t.subtotal}</dt>
               <dd>BDT {formatBdt(subtotal)}</dd>
             </div>
             <div>
-              <dt>Shipping (Inside Bangladesh)</dt>
+              <dt>Shipping</dt>
               <dd>BDT {formatBdt(shipping)}</dd>
-            </div>
-            <div>
-              <dt>Tax (Included)</dt>
-              <dd>BDT {formatBdt(tax)}</dd>
             </div>
             {discount > 0 && (
               <div>
@@ -172,7 +203,6 @@ export function CheckoutPage() {
           <p className="tax-note">
             <Shield size={14} /> All prices include applicable taxes.
           </p>
-
           <div className="trust-row">
             <article>
               <Lock size={18} />
@@ -196,9 +226,7 @@ export function CheckoutPage() {
         </aside>
 
         <section className="checkout-main">
-          <h1>Checkout</h1>
-          <p className="lede">Please review your order and complete your details.</p>
-
+          <h1>{t.checkout}</h1>
           <div className="panel">
             <h2>
               <MapPin size={16} /> Shipping address
@@ -206,18 +234,35 @@ export function CheckoutPage() {
             <div className="form-grid">
               <label>
                 Full name
-                <input
-                  placeholder="Enter your full name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </label>
               <label>
-                Phone number
+                {t.email}
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+              </label>
+              <label className="full">
+                {t.phone}
                 <div className="phone">
-                  <span>🇧🇩 +880</span>
+                  <select
+                    value={dial}
+                    onChange={(e) => {
+                      const next = COUNTRIES.find((c) => c.dial === e.target.value)
+                      setDial(e.target.value)
+                      setForm({ ...form, country: next?.name ?? form.country })
+                    }}
+                  >
+                    {COUNTRIES.map((c) => (
+                      <option key={c.iso} value={c.dial}>
+                        {c.flag} +{c.dial}
+                      </option>
+                    ))}
+                  </select>
                   <input
-                    placeholder="Enter your phone number"
+                    placeholder={country?.name === 'Bangladesh' ? '1712345678' : 'Phone number'}
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   />
@@ -226,23 +271,17 @@ export function CheckoutPage() {
               <label className="full">
                 Address
                 <input
-                  placeholder="Enter your street address"
                   value={form.address}
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
                 />
               </label>
               <label>
                 City
-                <input
-                  placeholder="Enter your city"
-                  value={form.city}
-                  onChange={(e) => setForm({ ...form, city: e.target.value })}
-                />
+                <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
               </label>
               <label>
-                Postal code
+                {t.postalOptional}
                 <input
-                  placeholder="Enter postal code"
                   value={form.postal}
                   onChange={(e) => setForm({ ...form, postal: e.target.value })}
                 />
@@ -251,9 +290,15 @@ export function CheckoutPage() {
                 Country
                 <select
                   value={form.country}
-                  onChange={(e) => setForm({ ...form, country: e.target.value })}
+                  onChange={(e) => {
+                    const next = COUNTRIES.find((c) => c.name === e.target.value)
+                    setForm({ ...form, country: e.target.value })
+                    if (next) setDial(next.dial)
+                  }}
                 >
-                  <option>Bangladesh</option>
+                  {COUNTRIES.map((c) => (
+                    <option key={c.iso}>{c.name}</option>
+                  ))}
                 </select>
               </label>
               <label>
@@ -273,90 +318,53 @@ export function CheckoutPage() {
 
           <div className="panel">
             <h2>
-              <CreditCard size={16} /> Payment method
+              <CreditCard size={16} /> {t.payment}
             </h2>
-            <p className="mini">Choose your preferred payment method</p>
             <div className="pay-grid">
               {METHODS.map((m) => (
                 <button
                   key={m.id}
-                  className={`pay-card ${method === m.id ? 'on' : ''} ${m.id}`}
+                  className={`pay-card ${method === m.id ? 'on' : ''} ${m.kind}`}
                   onClick={() => setMethod(m.id)}
                   type="button"
                 >
-                  {m.id === 'card' && (
+                  {m.id === 'Visa / Mastercard' && (
                     <span className="pay-logos">
                       <i className="visa">VISA</i>
                       <i className="mc" />
                     </span>
                   )}
-                  {m.id === 'bkash' && <span className="bkash">bKash</span>}
-                  {m.id === 'nagad' && <span className="nagad">Nagad</span>}
-                  {m.id === 'ssl' && (
-                    <span className="ssl">
-                      <b>▲</b> SSLCommerz
-                    </span>
-                  )}
-                  {m.id === 'card' && <small>Visa / Mastercard</small>}
-                  {m.id === 'ssl' && <small>Secure Gateway</small>}
+                  {m.id === 'bKash' && <span className="bkash">bKash</span>}
+                  {m.id === 'Nagad' && <span className="nagad">Nagad</span>}
+                  {m.id === 'Cash on delivery' && <span className="cod">{t.cod}</span>}
+                  <small>{m.id === 'Cash on delivery' ? t.cod : m.id}</small>
                 </button>
               ))}
             </div>
-            <p className="ssl-note">
-              <Lock size={12} /> Secure & encrypted payments · Powered by SSLCommerz
-            </p>
+            {method !== 'Cash on delivery' && (
+              <label className="account-field">
+                {method === 'Visa / Mastercard' ? 'Card number' : `${method} ${t.accountNo}`}
+                <input
+                  value={account}
+                  onChange={(e) => setAccount(e.target.value)}
+                  placeholder={
+                    method === 'Visa / Mastercard' ? 'ACCT-000003' : '01XXXXXXXXX'
+                  }
+                />
+              </label>
+            )}
+            {method === 'Cash on delivery' && (
+              <p className="ssl-note">Pay in cash when your order arrives.</p>
+            )}
           </div>
 
           <button className="gold-btn pay-btn" onClick={pay}>
-            Pay securely &nbsp; BDT {formatBdt(total)} <span>→</span>
+            {method === 'Cash on delivery' ? 'Place order' : t.pay} &nbsp; BDT {formatBdt(total)}{' '}
+            <span>→</span>
           </button>
-          <p className="fineprint">
-            <Lock size={12} /> Your payment is secure and encrypted. You will receive an order
-            confirmation via email and SMS.
-          </p>
         </section>
       </div>
       <Chrome />
-    </div>
-  )
-}
-
-export function ConfirmationPage() {
-  const params = new URLSearchParams(window.location.search)
-  const id = params.get('order') || 'SH-000000'
-  const total = params.get('total') || '0'
-
-  return (
-    <div className="checkout-page confirm-page">
-      <header className="checkout-top">
-        <Link to="/" className="checkout-brand">
-          <span>Style Heaven</span>
-          <small>Bangladesh</small>
-        </Link>
-        <ol className="steps">
-          <li>1. Shipping</li>
-          <li>2. Payment</li>
-          <li className="on">3. Confirmation</li>
-        </ol>
-        <div className="secure-flag">
-          <Lock size={16} />
-          <div>
-            <strong>Order confirmed</strong>
-            <span>Receipt sent by SMS & email</span>
-          </div>
-        </div>
-      </header>
-      <div className="confirm-card">
-        <p className="motif">Thank you</p>
-        <h1>Your order is placed.</h1>
-        <p>
-          Order <strong>{id}</strong>
-        </p>
-        <p>Total paid BDT {formatBdt(Number(total))}</p>
-        <Link to="/shop" className="gold-btn">
-          Continue shopping
-        </Link>
-      </div>
     </div>
   )
 }

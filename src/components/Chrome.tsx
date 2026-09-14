@@ -1,19 +1,16 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import {
-  Bell,
-  Menu,
-  Search,
-  ShoppingBag,
-  UserRound,
-  X,
-} from 'lucide-react'
+import { Bell, Menu, Search, ShoppingBag, UserRound, X } from 'lucide-react'
 import { useCartCount, useCartLines, useStore } from '../store'
-import { formatBdt } from '../types'
+import { formatBdt, productImage } from '../types'
+import { tx } from '../i18n'
+import { LangToggle } from './LangToggle'
+import { InvoiceModal } from './InvoiceModal'
 
 export function StoreHeader() {
-  const { setMenuOpen, setSearchOpen, setCartOpen } = useStore()
+  const { setMenuOpen, setSearchOpen, setCartOpen, lang } = useStore()
   const count = useCartCount()
+  const t = tx(lang)
 
   return (
     <header className="store-header">
@@ -24,13 +21,14 @@ export function StoreHeader() {
         Style Heaven
       </Link>
       <div className="header-actions">
+        <LangToggle />
         <button className="icon-btn" aria-label="Search" onClick={() => setSearchOpen(true)}>
           <Search size={20} strokeWidth={1.4} />
         </button>
-        <Link to="/account" className="icon-btn" aria-label="Account">
+        <Link to="/account" className="icon-btn" aria-label={t.account}>
           <UserRound size={20} strokeWidth={1.4} />
         </Link>
-        <button className="icon-btn bag-btn" aria-label="Bag" onClick={() => setCartOpen(true)}>
+        <button className="icon-btn bag-btn" aria-label={t.bag} onClick={() => setCartOpen(true)}>
           <ShoppingBag size={20} strokeWidth={1.4} />
           <span className="bag-badge">{count}</span>
         </button>
@@ -40,7 +38,8 @@ export function StoreHeader() {
 }
 
 export function MenuDrawer() {
-  const { menuOpen, setMenuOpen, user } = useStore()
+  const { menuOpen, setMenuOpen, lang } = useStore()
+  const t = tx(lang)
   if (!menuOpen) return null
   return (
     <div className="overlay" onClick={() => setMenuOpen(false)}>
@@ -52,15 +51,30 @@ export function MenuDrawer() {
           </button>
         </div>
         <nav className="drawer-nav">
-          <Link to="/shop" onClick={() => setMenuOpen(false)}>Shop</Link>
-          <Link to="/collections" onClick={() => setMenuOpen(false)}>Collections</Link>
-          <Link to="/shop?category=Scarves" onClick={() => setMenuOpen(false)}>Scarves</Link>
-          <Link to="/shop?category=Sarees" onClick={() => setMenuOpen(false)}>Sarees</Link>
-          <Link to="/account" onClick={() => setMenuOpen(false)}>Account</Link>
-          <Link to="/login" onClick={() => setMenuOpen(false)}>Sign in</Link>
-          {(user?.role === 'admin' || true) && (
-            <Link to="/admin" onClick={() => setMenuOpen(false)}>Back office</Link>
-          )}
+          <Link to="/shop" onClick={() => setMenuOpen(false)}>
+            {t.shop}
+          </Link>
+          <Link to="/collections" onClick={() => setMenuOpen(false)}>
+            {t.collections}
+          </Link>
+          <Link to="/shop?category=Scarves" onClick={() => setMenuOpen(false)}>
+            Scarves
+          </Link>
+          <Link to="/shop?category=Sarees" onClick={() => setMenuOpen(false)}>
+            Sarees
+          </Link>
+          <Link to="/account" onClick={() => setMenuOpen(false)}>
+            {t.account}
+          </Link>
+          <Link to="/login" onClick={() => setMenuOpen(false)}>
+            {t.signIn}
+          </Link>
+          <Link to="/track" onClick={() => setMenuOpen(false)}>
+            {t.trackOrder}
+          </Link>
+          <Link to="/admin" onClick={() => setMenuOpen(false)}>
+            Back office
+          </Link>
         </nav>
       </aside>
     </div>
@@ -68,14 +82,15 @@ export function MenuDrawer() {
 }
 
 export function SearchModal() {
-  const { searchOpen, setSearchOpen, products } = useStore()
+  const { searchOpen, setSearchOpen, products, lang } = useStore()
   const navigate = useNavigate()
   const [q, setQ] = useState('')
+  const t = tx(lang)
   if (!searchOpen) return null
   const list = products
     .filter((p) =>
       q.trim()
-        ? `${p.name} ${p.sku} ${p.collection} ${p.category}`.toLowerCase().includes(q.toLowerCase())
+        ? `${p.name} ${p.code} ${p.collection} ${p.category}`.toLowerCase().includes(q.toLowerCase())
         : p.shopVisible,
     )
     .slice(0, 8)
@@ -86,7 +101,7 @@ export function SearchModal() {
           <Search size={18} />
           <input
             autoFocus
-            placeholder="Search products, SKU, collections…"
+            placeholder={t.search}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
@@ -104,12 +119,12 @@ export function SearchModal() {
                 navigate(`/product/${p.slug}`)
               }}
             >
-              <img src={p.image} alt="" />
+              <img src={productImage(p)} alt="" />
               <span>
                 <strong>{p.name}</strong>
-                <em>{p.sku}</em>
+                <em>{p.code}</em>
               </span>
-              <b>৳ {formatBdt(p.price)}</b>
+              <b>৳ {formatBdt(p.sellingPrice)}</b>
             </button>
           ))}
         </div>
@@ -119,34 +134,44 @@ export function SearchModal() {
 }
 
 export function CartDrawer() {
-  const { cartOpen, setCartOpen, updateQty, removeFromCart } = useStore()
+  const { cartOpen, setCartOpen, updateQty, removeFromCart, lang } = useStore()
   const lines = useCartLines()
   const navigate = useNavigate()
-  const subtotal = lines.reduce((sum, l) => sum + (l.product?.price ?? 0) * l.qty, 0)
+  const t = tx(lang)
+  const subtotal = lines.reduce((sum, l) => sum + (l.product?.sellingPrice ?? 0) * l.qty, 0)
   if (!cartOpen) return null
   return (
     <div className="overlay" onClick={() => setCartOpen(false)}>
       <aside className="drawer drawer-right" onClick={(e) => e.stopPropagation()}>
         <div className="drawer-head">
-          <h3>Your bag</h3>
+          <h3>{t.bag}</h3>
           <button className="icon-btn dark" onClick={() => setCartOpen(false)}>
             <X size={20} />
           </button>
         </div>
         <div className="cart-lines">
-          {lines.length === 0 && <p className="muted">Your bag is empty.</p>}
+          {lines.length === 0 && <p className="muted">{t.emptyBag}</p>}
           {lines.map((line) => (
-            <div className="cart-line" key={`${line.productId}-${line.size}`}>
-              <img src={line.product?.image} alt="" />
+            <div className="cart-line" key={`${line.productId}-${line.size}-${line.color}`}>
+              <img src={productImage(line.product)} alt="" />
               <div>
                 <strong>{line.product?.name}</strong>
-                <p>{line.size}</p>
-                <p>৳ {formatBdt(line.product?.price ?? 0)}</p>
+                <p>
+                  {line.size} · {line.color}
+                </p>
+                <p>৳ {formatBdt(line.product?.sellingPrice ?? 0)}</p>
                 <div className="qty">
-                  <button onClick={() => updateQty(line.productId, line.size, line.qty - 1)}>-</button>
+                  <button onClick={() => updateQty(line.productId, line.size, line.color, line.qty - 1)}>
+                    -
+                  </button>
                   <span>{line.qty}</span>
-                  <button onClick={() => updateQty(line.productId, line.size, line.qty + 1)}>+</button>
-                  <button className="text-btn" onClick={() => removeFromCart(line.productId, line.size)}>
+                  <button onClick={() => updateQty(line.productId, line.size, line.color, line.qty + 1)}>
+                    +
+                  </button>
+                  <button
+                    className="text-btn"
+                    onClick={() => removeFromCart(line.productId, line.size, line.color)}
+                  >
                     Remove
                   </button>
                 </div>
@@ -156,7 +181,7 @@ export function CartDrawer() {
         </div>
         <div className="cart-foot">
           <div className="row-between">
-            <span>Subtotal</span>
+            <span>{t.subtotal}</span>
             <strong>৳ {formatBdt(subtotal)}</strong>
           </div>
           <button
@@ -167,7 +192,7 @@ export function CartDrawer() {
               navigate('/checkout')
             }}
           >
-            Checkout
+            {t.checkout}
           </button>
         </div>
       </aside>
@@ -179,9 +204,9 @@ export function Toasts() {
   const { toasts } = useStore()
   return (
     <div className="toasts">
-      {toasts.map((t) => (
-        <div key={t.id} className="toast">
-          {t.message}
+      {toasts.map((item) => (
+        <div key={item.id} className="toast">
+          {item.message}
         </div>
       ))}
     </div>
@@ -189,12 +214,14 @@ export function Toasts() {
 }
 
 export function Chrome() {
+  const { invoiceOrder, setInvoiceOrder } = useStore()
   return (
     <>
       <MenuDrawer />
       <SearchModal />
       <CartDrawer />
       <Toasts />
+      {invoiceOrder && <InvoiceModal order={invoiceOrder} onClose={() => setInvoiceOrder(null)} />}
     </>
   )
 }

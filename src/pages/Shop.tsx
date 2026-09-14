@@ -1,39 +1,86 @@
+import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Chrome, StoreHeader } from '../components/Chrome'
-import { useStore } from '../store'
-import { formatBdt } from '../types'
+import { ImageCarousel } from '../components/Carousel'
+import { activeCampaigns, useStore } from '../store'
+import { formatBdt, type Product } from '../types'
+import { tx } from '../i18n'
+
+function ShopCard({ product }: { product: Product }) {
+  const { addToCart, lang, media } = useStore()
+  const t = tx(lang)
+  const [size, setSize] = useState(product.sizes[0] ?? '')
+  const [color, setColor] = useState(product.colors[0] ?? '')
+  const deal = activeCampaigns(media.campaigns).find(
+    (c) => c.productId === product.id && (c.type === 'discount' || c.type === 'offer'),
+  )
+
+  return (
+    <article className="product-card shop-card">
+      <Link to={`/product/${product.slug}`} className="card-img">
+        <ImageCarousel images={product.images} seconds={product.imageScrollSeconds} alt={product.name} />
+        {deal && <span className="deal-pill">{deal.title}</span>}
+      </Link>
+      <h3>
+        <Link to={`/product/${product.slug}`}>{product.name}</Link>
+      </h3>
+      <p>{product.subtitle}</p>
+      <strong>৳ {formatBdt(product.sellingPrice)}</strong>
+      <label>
+        {t.size}
+        <select value={size} onChange={(e) => setSize(e.target.value)}>
+          {product.sizes.map((option) => (
+            <option key={option}>{option}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        {t.colour}
+        <select value={color} onChange={(e) => setColor(e.target.value)}>
+          {product.colors.map((option) => (
+            <option key={option}>{option}</option>
+          ))}
+        </select>
+      </label>
+      <button
+        className="gold-btn compact full"
+        disabled={product.stock <= 0}
+        onClick={() => addToCart(product.id, size, color)}
+      >
+        {t.addToBag}
+      </button>
+    </article>
+  )
+}
 
 export function ShopPage() {
-  const { products } = useStore()
+  const { products, lang } = useStore()
   const [params] = useSearchParams()
+  const t = tx(lang)
   const category = params.get('category')
   const collection = params.get('collection')
-  const list = products.filter((p) => {
-    if (!p.shopVisible) return false
-    if (category && p.category !== category) return false
-    if (collection && p.collection !== collection) return false
-    return true
-  })
+  const list = useMemo(
+    () =>
+      products.filter((p) => {
+        if (!p.shopVisible) return false
+        if (category && p.category !== category) return false
+        if (collection && p.collection !== collection) return false
+        return true
+      }),
+    [products, category, collection],
+  )
 
   return (
     <div className="shop-page">
       <StoreHeader />
       <main className="shop-wrap">
         <p className="crumbs">
-          <Link to="/">Home</Link> <span>/</span> {category || collection || 'Shop'}
+          <Link to="/">{t.home}</Link> <span>/</span> {category || collection || t.shop}
         </p>
-        <h1>{category || collection || 'The collection'}</h1>
-        <p className="shop-intro">Heritage silk, cut for the present.</p>
+        <h1>{category || collection || t.collections}</h1>
         <div className="product-grid">
           {list.map((p) => (
-            <Link to={`/product/${p.slug}`} className="product-card" key={p.id}>
-              <div className="card-img">
-                <img src={p.image} alt={p.name} />
-              </div>
-              <h3>{p.name}</h3>
-              <p>{p.shade}</p>
-              <strong>৳ {formatBdt(p.price)}</strong>
-            </Link>
+            <ShopCard key={p.id} product={p} />
           ))}
         </div>
       </main>
@@ -43,6 +90,8 @@ export function ShopPage() {
 }
 
 export function CollectionsPage() {
+  const { lang } = useStore()
+  const t = tx(lang)
   const collections = [
     {
       title: 'Signature Scarves',
@@ -75,9 +124,9 @@ export function CollectionsPage() {
       <StoreHeader />
       <main className="shop-wrap">
         <p className="crumbs">
-          <Link to="/">Home</Link> <span>/</span> Collections
+          <Link to="/">{t.home}</Link> <span>/</span> {t.collections}
         </p>
-        <h1>Collections</h1>
+        <h1>{t.collections}</h1>
         <div className="collection-grid">
           {collections.map((c) => (
             <Link to={c.to} className="collection-card" key={c.title}>
