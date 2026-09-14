@@ -45,7 +45,7 @@ export function ProductPage() {
           <h1>
             {product.featured ? (
               <>
-                Style Heaven signature
+                Signature
                 <br />
                 silk scarf
               </>
