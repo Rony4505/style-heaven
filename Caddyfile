@@ -1,0 +1,11 @@
+{
+	admin off
+	auto_https off
+}
+
+:{$PORT:8080} {
+	encode gzip
+	root * /usr/share/caddy
+	file_server
+	try_files {path} /index.html
+}
