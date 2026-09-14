@@ -1,4 +1,4 @@
-import { stockStatus, type Product } from '../types'
+import { asColor, stockStatus, type Product } from '../types'
 
 const IMG = {
   jamdani: '/images/scarf-jamdani.jpg',
@@ -180,8 +180,10 @@ export function createCatalog(): Product[] {
     images: seed.images,
     description: seed.description,
     motif: seed.motif,
+    hasSize: true,
+    hasColor: true,
     sizes: seed.sizes,
-    colors: seed.colors,
+    colors: seed.colors.map(asColor),
     material: seed.material,
     origin: 'Handwoven in Bengal',
     imageScrollSeconds: 4,

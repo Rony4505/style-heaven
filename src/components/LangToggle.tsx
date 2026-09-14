@@ -1,9 +1,9 @@
 import { useStore } from '../store'
 
-export function LangToggle({ light = false }: { light?: boolean }) {
+export function LangToggle({ light = false, fixed = false }: { light?: boolean; fixed?: boolean }) {
   const { lang, setLang } = useStore()
   return (
-    <div className={`lang-toggle ${light ? 'light' : ''}`} role="group" aria-label="Language">
+    <div className={`lang-toggle ${light ? 'light' : ''} ${fixed ? 'fixed' : ''}`} role="group" aria-label="Language">
       <button type="button" className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>
         EN
       </button>

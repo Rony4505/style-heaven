@@ -3,14 +3,14 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Chrome, StoreHeader } from '../components/Chrome'
 import { ImageCarousel } from '../components/Carousel'
 import { activeCampaigns, useStore } from '../store'
-import { formatBdt, type Product } from '../types'
+import { formatBdt, colorName, type Product } from '../types'
 import { tx } from '../i18n'
 
 function ShopCard({ product }: { product: Product }) {
   const { addToCart, lang, media } = useStore()
   const t = tx(lang)
-  const [size, setSize] = useState(product.sizes[0] ?? '')
-  const [color, setColor] = useState(product.colors[0] ?? '')
+  const [size, setSize] = useState(product.hasSize ? product.sizes[0] ?? '' : '')
+  const [color, setColor] = useState(product.hasColor ? colorName(product.colors[0]) : '')
   const deal = activeCampaigns(media.campaigns).find(
     (c) => c.productId === product.id && (c.type === 'discount' || c.type === 'offer'),
   )
@@ -26,22 +26,36 @@ function ShopCard({ product }: { product: Product }) {
       </h3>
       <p>{product.subtitle}</p>
       <strong>৳ {formatBdt(product.sellingPrice)}</strong>
-      <label>
-        {t.size}
-        <select value={size} onChange={(e) => setSize(e.target.value)}>
-          {product.sizes.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        {t.colour}
-        <select value={color} onChange={(e) => setColor(e.target.value)}>
-          {product.colors.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </select>
-      </label>
+      {product.hasSize && product.sizes.length > 0 && (
+        <label>
+          {t.size}
+          <select value={size} onChange={(e) => setSize(e.target.value)}>
+            {product.sizes.map((option) => (
+              <option key={option}>{option}</option>
+            ))}
+          </select>
+        </label>
+      )}
+      {product.hasColor && product.colors.length > 0 && (
+        <div className="color-field">
+          <span>{t.colour}</span>
+          <div className="color-picks">
+            {product.colors.map((option) => (
+              <button
+                type="button"
+                key={option.name}
+                className={color === option.name ? 'on' : ''}
+                style={{ background: option.hex }}
+                title={`${option.name} ${option.hex}`}
+                onClick={() => setColor(option.name)}
+              />
+            ))}
+          </div>
+          <small>
+            {color} {product.colors.find((c) => c.name === color)?.hex}
+          </small>
+        </div>
+      )}
       <button
         className="gold-btn compact full"
         disabled={product.stock <= 0}

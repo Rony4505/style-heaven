@@ -4,7 +4,7 @@ import { BadgeCheck, CreditCard, FileText, Lock, MapPin, RefreshCcw, Shield } fr
 import { DISTRICTS } from '../data/districts'
 import { COUNTRIES, validatePhone } from '../data/countries'
 import { activeCampaigns, orderItemsFromCart, useCartLines, useStore } from '../store'
-import { formatBdt, productImage, type PaymentMethod } from '../types'
+import { formatBdt, colorName, productImage, type PaymentMethod } from '../types'
 import { Chrome } from '../components/Chrome'
 import { tx } from '../i18n'
 
@@ -17,10 +17,10 @@ const METHODS: { id: PaymentMethod; kind: 'card' | 'wallet' | 'cod' }[] = [
 
 export function CheckoutPage() {
   const lines = useCartLines()
-  const { products, placeOrder, toast, user, lang, media } = useStore()
+  const { products, placeOrder, toast, user, lang, media, settings } = useStore()
   const t = tx(lang)
   const [method, setMethod] = useState<PaymentMethod>('bKash')
-  const [account, setAccount] = useState('')
+  const [paid, setPaid] = useState(false)
   const [promo, setPromo] = useState('')
   const [applied, setApplied] = useState(0)
   const [dial, setDial] = useState('880')
@@ -42,8 +42,8 @@ export function CheckoutPage() {
       ? [
           {
             productId: fallback.id,
-            size: fallback.sizes[0],
-            color: fallback.colors[0],
+            size: fallback.hasSize ? fallback.sizes[0] : '',
+            color: fallback.hasColor ? colorName(fallback.colors[0]) : '',
             qty: 1,
             product: fallback,
           },
@@ -52,11 +52,21 @@ export function CheckoutPage() {
   }, [lines, products])
 
   const subtotal = filled.reduce((sum, l) => sum + (l.product?.sellingPrice ?? 0) * l.qty, 0)
-  const shipping = 120
+  const shipping = form.district
+    ? (settings.deliveryCharges[form.district] ?? settings.defaultShipping)
+    : settings.defaultShipping
   const discount = Math.round(subtotal * applied)
   const total = Math.max(0, subtotal + shipping - discount)
   const first = filled[0]?.product
   const country = COUNTRIES.find((c) => c.dial === dial)
+  const payAccount =
+    method === 'Visa / Mastercard'
+      ? `${settings.payCardName} · ${settings.payCardNumber}`
+      : method === 'bKash'
+        ? settings.payBkash
+        : method === 'Nagad'
+          ? settings.payNagad
+          : 'COD'
 
   const pay = () => {
     if (!form.name || !form.phone || !form.address || !form.city || !form.district) {
@@ -71,11 +81,11 @@ export function CheckoutPage() {
       )
       return
     }
-    if (method !== 'Cash on delivery' && account.replace(/\D/g, '').length < 6) {
+    if (method !== 'Cash on delivery' && !paid) {
       toast(
         lang === 'bn'
-          ? 'পেমেন্ট অ্যাকাউন্ট নম্বর দিন।'
-          : 'Enter the account or card number to complete payment.',
+          ? 'পেমেন্ট পাঠানোর পর নিশ্চিত করুন।'
+          : 'Confirm that you have sent the payment first.',
       )
       return
     }
@@ -99,7 +109,7 @@ export function CheckoutPage() {
       discount,
       total,
       payment: method,
-      paymentAccount: method === 'Cash on delivery' ? 'COD' : account,
+      paymentAccount: payAccount,
       customerName: guest && !user ? form.name : form.name,
       email: form.email,
       phone: form.phone,
@@ -325,7 +335,10 @@ export function CheckoutPage() {
                 <button
                   key={m.id}
                   className={`pay-card ${method === m.id ? 'on' : ''} ${m.kind}`}
-                  onClick={() => setMethod(m.id)}
+                  onClick={() => {
+                    setMethod(m.id)
+                    setPaid(false)
+                  }}
                   type="button"
                 >
                   {m.id === 'Visa / Mastercard' && (
@@ -342,16 +355,37 @@ export function CheckoutPage() {
               ))}
             </div>
             {method !== 'Cash on delivery' && (
-              <label className="account-field">
-                {method === 'Visa / Mastercard' ? 'Card number' : `${method} ${t.accountNo}`}
-                <input
-                  value={account}
-                  onChange={(e) => setAccount(e.target.value)}
-                  placeholder={
-                    method === 'Visa / Mastercard' ? 'ACCT-000003' : '01XXXXXXXXX'
-                  }
-                />
-              </label>
+              <div className="pay-to">
+                <h3>{t.payTo}</h3>
+                {method === 'Visa / Mastercard' && (
+                  <>
+                    <p>
+                      <span>{t.cardHolder}</span>
+                      <strong>{settings.payCardName}</strong>
+                    </p>
+                    <p>
+                      <span>{t.storeCard}</span>
+                      <strong className="mono">{settings.payCardNumber}</strong>
+                    </p>
+                  </>
+                )}
+                {method === 'bKash' && (
+                  <p>
+                    <span>bKash</span>
+                    <strong className="mono">{settings.payBkash}</strong>
+                  </p>
+                )}
+                {method === 'Nagad' && (
+                  <p>
+                    <span>Nagad</span>
+                    <strong className="mono">{settings.payNagad}</strong>
+                  </p>
+                )}
+                <label className="check">
+                  <input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} />
+                  {t.iPaid}
+                </label>
+              </div>
             )}
             {method === 'Cash on delivery' && (
               <p className="ssl-note">Pay in cash when your order arrives.</p>

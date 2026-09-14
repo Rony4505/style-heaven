@@ -37,6 +37,14 @@ const en = {
   shipping: 'Shipping',
   payment: 'Payment',
   confirmation: 'Confirmation',
+  name: 'Name',
+  orEasy: 'Or create with',
+  continueWith: 'Continue with',
+  nameAuto: 'Your name is filled in from this account. You can edit it.',
+  payTo: 'Pay to Style Heaven',
+  cardHolder: 'Card name',
+  storeCard: 'Card number',
+  iPaid: 'I have sent the payment to this account',
 }
 
 const bn: typeof en = {
@@ -76,6 +84,14 @@ const bn: typeof en = {
   shipping: 'শিপিং',
   payment: 'পেমেন্ট',
   confirmation: 'কনফার্মেশন',
+  name: 'নাম',
+  orEasy: 'অথবা সহজে খুলুন',
+  continueWith: 'চালিয়ে যান',
+  nameAuto: 'এই অ্যাকাউন্ট থেকে নামটি অটো বসেছে। চাইলে বদলাতে পারবেন।',
+  payTo: 'Style Heaven-এ পেমেন্ট করুন',
+  cardHolder: 'কার্ডের নাম',
+  storeCard: 'কার্ড নম্বর',
+  iPaid: 'এই অ্যাকাউন্টে পেমেন্ট পাঠিয়েছি',
 }
 
 const dict = { en, bn }

@@ -3,6 +3,13 @@ export type Lang = 'en' | 'bn'
 export type OrderStatus = 'Confirmed' | 'Packed' | 'Shipped' | 'Out for delivery' | 'Delivered'
 export type CampaignType = 'offer' | 'discount' | 'advertising' | 'coupon'
 export type PaymentMethod = 'Visa / Mastercard' | 'bKash' | 'Nagad' | 'Cash on delivery'
+export type AuthProvider = 'email' | 'google' | 'facebook' | 'apple'
+export type UserRole = 'customer' | 'admin' | 'moderator'
+
+export type ColorOption = {
+  name: string
+  hex: string
+}
 
 export type Product = {
   id: string
@@ -19,8 +26,10 @@ export type Product = {
   images: string[]
   description: string
   motif?: string
+  hasSize: boolean
+  hasColor: boolean
   sizes: string[]
-  colors: string[]
+  colors: ColorOption[]
   material: string
   origin: string
   imageScrollSeconds: number
@@ -39,7 +48,17 @@ export type User = {
   name: string
   email: string
   phone?: string
-  role: 'customer' | 'admin'
+  password?: string
+  role: UserRole
+  provider?: AuthProvider
+}
+
+export type Moderator = {
+  id: string
+  name: string
+  email: string
+  phone: string
+  password: string
 }
 
 export type OrderItem = {
@@ -95,8 +114,8 @@ export type Campaign = {
   title: string
   productId: string
   value: string
-  days: number
   startAt: string
+  endAt: string
   code?: string
 }
 
@@ -115,6 +134,13 @@ export type SiteSettings = {
   twoFactor: boolean
   loginAlerts: boolean
   sessionHours: number
+  payCardName: string
+  payCardNumber: string
+  payBkash: string
+  payNagad: string
+  defaultShipping: number
+  deliveryCharges: Record<string, number>
+  moderators: Moderator[]
 }
 
 export function stockStatus(stock: number): ProductStatus {
@@ -129,6 +155,44 @@ export function formatBdt(n: number) {
 
 export function productImage(p?: Product | null) {
   return p?.images?.[0] || ''
+}
+
+const NAMED_HEX: Record<string, string> = {
+  'Jamdani Cream': '#f4e7d0',
+  'Champagne Gold': '#d4b56a',
+  Blush: '#e8b4b8',
+  Charcoal: '#3d3a38',
+  Midnight: '#1b2436',
+  Ivory: '#f6f1e6',
+  Bronze: '#b08d57',
+}
+
+export function namedHex(name: string) {
+  return NAMED_HEX[name] || '#c4a35a'
+}
+
+export function asColor(value: unknown): ColorOption {
+  if (value && typeof value === 'object' && 'name' in (value as object)) {
+    const c = value as ColorOption
+    return { name: c.name, hex: c.hex || namedHex(c.name) }
+  }
+  const name = String(value ?? '')
+  return { name, hex: namedHex(name) }
+}
+
+export function colorName(value: ColorOption | string | undefined) {
+  if (!value) return ''
+  return typeof value === 'string' ? value : value.name
+}
+
+export function campaignDays(startAt: string, endAt: string) {
+  const ms = new Date(endAt).getTime() - new Date(startAt).getTime()
+  return Math.max(1, Math.round(ms / 86400000))
+}
+
+export function toInputDate(iso: string) {
+  if (!iso) return ''
+  return iso.slice(0, 10)
 }
 
 export const DEFAULT_CATEGORIES = [

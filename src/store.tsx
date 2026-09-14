@@ -7,11 +7,15 @@ import {
   type ReactNode,
 } from 'react'
 import { createCatalog } from './data/catalog'
+import { defaultDeliveryCharges } from './data/districts'
 import {
   DEFAULT_CATEGORIES,
   DEFAULT_COLORS,
   DEFAULT_SIZES,
+  asColor,
+  colorName,
   stockStatus,
+  type AuthProvider,
   type Campaign,
   type CartItem,
   type HeroSlide,
@@ -55,7 +59,14 @@ type Store = {
   removeFromCart: (productId: string, size: string, color: string) => void
   clearCart: () => void
   login: (email: string, password: string, name?: string, phone?: string) => boolean
-  register: (input: { name: string; email: string; password: string; phone?: string }) => boolean
+  register: (input: {
+    name: string
+    email: string
+    password?: string
+    phone?: string
+    provider?: AuthProvider
+  }) => boolean
+  socialLogin: (provider: AuthProvider, input: { name: string; email: string; phone?: string }) => boolean
   logout: () => void
   toast: (message: string) => void
   upsertProduct: (product: Product) => void
@@ -75,7 +86,8 @@ type Store = {
   restore: (json: string) => boolean
 }
 
-const KEY = 'style-heaven-store-v3'
+const KEY = 'style-heaven-store-v4'
+const PREV_KEY = 'style-heaven-store-v3'
 const StoreContext = createContext<Store | null>(null)
 
 function trackingCode() {
@@ -107,8 +119,8 @@ function seedMedia(): MediaSettings {
         title: 'Heaven 10',
         productId: '',
         value: '10',
-        days: 30,
         startAt: new Date().toISOString(),
+        endAt: new Date(Date.now() + 30 * 86400000).toISOString(),
         code: 'HEAVEN10',
       },
     ],
@@ -123,6 +135,13 @@ function seedSettings(): SiteSettings {
     twoFactor: false,
     loginAlerts: true,
     sessionHours: 12,
+    payCardName: 'Style Heaven Ltd',
+    payCardNumber: '4532 8890 1144 6721',
+    payBkash: '01712345678',
+    payNagad: '01812345678',
+    defaultShipping: 160,
+    deliveryCharges: defaultDeliveryCharges(),
+    moderators: [],
   }
 }
 
@@ -163,8 +182,8 @@ function seedOrders(products: Product[]): Order[] {
           name: product?.name ?? 'Silk Scarf',
           qty: 1,
           price,
-          size: product?.sizes[0] ?? '',
-          color: product?.colors[0] ?? '',
+          size: product?.hasSize ? product.sizes[0] ?? '' : '',
+          color: product?.hasColor ? colorName(product.colors[0]) : '',
         },
       ],
       subtotal: price,
@@ -203,6 +222,47 @@ type Persisted = {
   lang: Lang
 }
 
+function migrateProduct(p: Product): Product {
+  return {
+    ...p,
+    hasSize: p.hasSize ?? true,
+    hasColor: p.hasColor ?? true,
+    colors: (p.colors ?? []).map(asColor),
+    description: p.description ?? '',
+  }
+}
+
+function migrateCampaign(c: Campaign & { days?: number }): Campaign {
+  const startAt = c.startAt || new Date().toISOString()
+  const endAt =
+    c.endAt ||
+    new Date(new Date(startAt).getTime() + Math.max(1, c.days || 7) * 86400000).toISOString()
+  return {
+    id: c.id,
+    type: c.type,
+    title: c.title,
+    productId: c.productId,
+    value: c.value,
+    startAt,
+    endAt,
+    code: c.code,
+  }
+}
+
+function migrateSettings(s?: Partial<SiteSettings> | null): SiteSettings {
+  const base = seedSettings()
+  return {
+    ...base,
+    ...s,
+    deliveryCharges: { ...base.deliveryCharges, ...(s?.deliveryCharges ?? {}) },
+    moderators: s?.moderators ?? [],
+    payCardName: s?.payCardName || base.payCardName,
+    payCardNumber: s?.payCardNumber || base.payCardNumber,
+    payBkash: s?.payBkash || base.payBkash,
+    payNagad: s?.payNagad || base.payNagad,
+  }
+}
+
 function load(): Persisted {
   const catalog = createCatalog()
   const fallback: Persisted = {
@@ -210,9 +270,29 @@ function load(): Persisted {
     cart: [],
     user: null,
     users: [
-      { name: 'Admin', email: 'admin@styleheaven.com', phone: '+8801712345678', role: 'admin' },
-      { name: 'Ayesha Rahman', email: 'ayesha@mail.com', phone: '1712345678', role: 'customer' },
-      { name: 'Farhan Ahmed', email: 'farhan@mail.com', phone: '1911002200', role: 'customer' },
+      {
+        name: 'Admin',
+        email: 'admin@styleheaven.com',
+        phone: '+8801712345678',
+        role: 'admin',
+        provider: 'email',
+      },
+      {
+        name: 'Ayesha Rahman',
+        email: 'ayesha@mail.com',
+        phone: '1712345678',
+        password: 'user123',
+        role: 'customer',
+        provider: 'email',
+      },
+      {
+        name: 'Farhan Ahmed',
+        email: 'farhan@mail.com',
+        phone: '1911002200',
+        password: 'user123',
+        role: 'customer',
+        provider: 'email',
+      },
     ],
     orders: seedOrders(catalog),
     categories: [...DEFAULT_CATEGORIES],
@@ -223,15 +303,21 @@ function load(): Persisted {
     lang: 'en',
   }
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(KEY) || localStorage.getItem(PREV_KEY)
     if (!raw) return fallback
     const parsed = JSON.parse(raw) as Partial<Persisted>
+    const products = (parsed.products?.length ? parsed.products : catalog).map(migrateProduct)
+    const media = parsed.media ?? fallback.media
     return {
       ...fallback,
       ...parsed,
-      products: parsed.products?.length ? parsed.products : catalog,
-      media: parsed.media ?? fallback.media,
-      settings: parsed.settings ?? fallback.settings,
+      products,
+      media: {
+        ...fallback.media,
+        ...media,
+        campaigns: (media.campaigns ?? []).map(migrateCampaign),
+      },
+      settings: migrateSettings(parsed.settings),
     }
   } catch {
     return fallback
@@ -371,36 +457,92 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             name: 'Admin',
             phone: settings.adminPhone,
             role: 'admin',
+            provider: 'email',
+          })
+          return true
+        }
+        const mod = settings.moderators.find((m) => m.email.toLowerCase() === em)
+        if (mod) {
+          if (mod.password !== password) {
+            toast('Wrong moderator password.')
+            return false
+          }
+          setUser({
+            email: mod.email,
+            name: mod.name,
+            phone: mod.phone,
+            role: 'moderator',
+            provider: 'email',
           })
           return true
         }
         const existing = users.find((u) => u.email.toLowerCase() === em)
-        setUser(
-          existing ?? {
-            email: em,
-            name: name || em.split('@')[0],
-            phone,
-            role: 'customer',
-          },
-        )
-        if (!existing) {
-          setUsers((list) => [
-            ...list,
-            { email: em, name: name || em.split('@')[0], phone, role: 'customer' },
-          ])
+        if (existing?.provider && existing.provider !== 'email') {
+          toast(`Please continue with ${existing.provider}.`)
+          return false
         }
+        if (existing?.password && existing.password !== password) {
+          toast('Wrong password.')
+          return false
+        }
+        const next: User = existing ?? {
+          email: em,
+          name: name || em.split('@')[0],
+          phone,
+          password,
+          role: 'customer',
+          provider: 'email',
+        }
+        setUser(next)
+        if (!existing) setUsers((list) => [...list, next])
         return true
       },
-      register: ({ name, email, password, phone }) => {
+      register: ({ name, email, password, phone, provider = 'email' }) => {
         const em = email.trim().toLowerCase()
-        if (users.some((u) => u.email.toLowerCase() === em)) {
+        if (
+          users.some((u) => u.email.toLowerCase() === em) ||
+          em === settings.adminEmail.toLowerCase() ||
+          settings.moderators.some((m) => m.email.toLowerCase() === em)
+        ) {
           toast('An account with this email already exists.')
           return false
         }
-        const next: User = { name, email: em, phone, role: 'customer' }
+        const next: User = {
+          name,
+          email: em,
+          phone,
+          password,
+          role: 'customer',
+          provider,
+        }
         setUsers((list) => [...list, next])
         setUser(next)
-        void password
+        return true
+      },
+      socialLogin: (provider, input) => {
+        const em = input.email.trim().toLowerCase()
+        if (!em) {
+          toast('Email is required.')
+          return false
+        }
+        if (em === settings.adminEmail.toLowerCase()) {
+          toast('Use the admin password to sign in.')
+          return false
+        }
+        const existing = users.find((u) => u.email.toLowerCase() === em)
+        if (existing) {
+          setUser(existing)
+          return true
+        }
+        const next: User = {
+          name: input.name || em.split('@')[0],
+          email: em,
+          phone: input.phone,
+          role: 'customer',
+          provider,
+        }
+        setUsers((list) => [...list, next])
+        setUser(next)
         return true
       },
       logout: () => setUser(null),
@@ -471,14 +613,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       restore: (json) => {
         try {
           const parsed = JSON.parse(json) as Partial<Persisted>
-          if (parsed.products) setProducts(parsed.products)
+          if (parsed.products) setProducts(parsed.products.map(migrateProduct))
           if (parsed.orders) setOrders(parsed.orders)
           if (parsed.users) setUsers(parsed.users)
           if (parsed.categories) setCategories(parsed.categories)
           if (parsed.sizes) setSizes(parsed.sizes)
           if (parsed.colors) setColors(parsed.colors)
-          if (parsed.media) setMedia(parsed.media)
-          if (parsed.settings) setSettings(parsed.settings)
+          if (parsed.media) {
+            setMedia({
+              ...parsed.media,
+              campaigns: (parsed.media.campaigns ?? []).map(migrateCampaign),
+            })
+          }
+          if (parsed.settings) setSettings(migrateSettings(parsed.settings))
           toast('Backup restored.')
           return true
         } catch {
@@ -534,7 +681,8 @@ export function activeCampaigns(campaigns: Campaign[]) {
   const now = Date.now()
   return campaigns.filter((c) => {
     const start = new Date(c.startAt).getTime()
-    return now >= start && now <= start + c.days * 86400000
+    const end = new Date(c.endAt).getTime()
+    return now >= start && now <= end
   })
 }
 

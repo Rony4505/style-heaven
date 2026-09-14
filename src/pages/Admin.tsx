@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import {
   Bell,
   ChevronLeft,
@@ -25,15 +25,20 @@ import { useStore } from '../store'
 import {
   formatBdt,
   stockStatus,
+  campaignDays,
+  toInputDate,
   type Campaign,
   type CampaignType,
+  type ColorOption,
   type HeroSlide,
+  type Moderator,
   type Order,
   type OrderStatus,
   type Product,
 } from '../types'
 import { Chrome } from '../components/Chrome'
 import { ImageCarousel } from '../components/Carousel'
+import { DISTRICTS } from '../data/districts'
 
 const NAV = [
   { id: 'products', label: 'Products', icon: ShoppingBag },
@@ -92,6 +97,12 @@ export function AdminPage() {
   const pages = Math.max(1, Math.ceil(filtered.length / perPage))
   const slice = filtered.slice((page - 1) * perPage, page * perPage)
 
+  if (!store.user || (store.user.role !== 'admin' && store.user.role !== 'moderator')) {
+    return <Navigate to="/login" replace />
+  }
+
+  const tabs = store.user.role === 'admin' ? NAV : NAV.filter((item) => item.id !== 'settings')
+
   return (
     <div className="admin">
       <aside className="admin-side">
@@ -100,7 +111,7 @@ export function AdminPage() {
           <small>E-commerce back office</small>
         </Link>
         <nav>
-          {NAV.map((item) => (
+          {tabs.map((item) => (
             <button
               key={item.id}
               className={tab === item.id ? 'on' : ''}
@@ -135,7 +146,7 @@ export function AdminPage() {
               <span className="avatar">A</span>
               <span>
                 <b>{store.user?.name || 'Admin'}</b>
-                <small>Super Administrator</small>
+                <small>{store.user.role === 'moderator' ? 'Moderator' : 'Super Administrator'}</small>
               </span>
             </button>
           </div>
@@ -156,7 +167,7 @@ export function AdminPage() {
         {tab === 'customers' && <CustomersTab onOpen={setCustomerKey} />}
         {tab === 'payments' && <PaymentsTab />}
         {tab === 'media' && <MediaTab />}
-        {tab === 'settings' && <SettingsTab />}
+        {tab === 'settings' && store.user.role === 'admin' && <SettingsTab />}
       </div>
 
       {editing && <ProductModal product={editing} onClose={() => setEditing(null)} />}
@@ -186,9 +197,7 @@ function ProductsTab({
   setPage: (n: number | ((p: number) => number)) => void
   setEditing: (p: Product) => void
 }) {
-  const { deleteProduct, sizes, colors, addSize, deleteSize, addColor, deleteColor } = useStore()
-  const [newSize, setNewSize] = useState('')
-  const [newColor, setNewColor] = useState('')
+  const { deleteProduct } = useStore()
 
   return (
     <section className="admin-panel">
@@ -218,56 +227,18 @@ function ProductsTab({
               images: ['/images/silk-gold.jpg'],
               description: '',
               sizes: ['M'],
-              colors: ['Champagne Gold'],
+              colors: [{ name: 'Champagne Gold', hex: '#d4b56a' }],
               material: '100% mulberry silk',
               origin: 'Handwoven in Bengal',
               imageScrollSeconds: 4,
+              hasSize: true,
+              hasColor: true,
               shopVisible: true,
             })
           }
         >
           <Plus size={16} /> Add product
         </button>
-      </div>
-      <div className="option-managers">
-        <div>
-          <h3>Sizes</h3>
-          <div className="chip-row">
-            {sizes.map((s) => (
-              <button key={s} className="chip" onClick={() => deleteSize(s)}>
-                {s} ×
-              </button>
-            ))}
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              addSize(newSize)
-              setNewSize('')
-            }}
-          >
-            <input value={newSize} onChange={(e) => setNewSize(e.target.value)} placeholder="Add size" />
-          </form>
-        </div>
-        <div>
-          <h3>Colours</h3>
-          <div className="chip-row">
-            {colors.map((s) => (
-              <button key={s} className="chip" onClick={() => deleteColor(s)}>
-                {s} ×
-              </button>
-            ))}
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              addColor(newColor)
-              setNewColor('')
-            }}
-          >
-            <input value={newColor} onChange={(e) => setNewColor(e.target.value)} placeholder="Add colour" />
-          </form>
-        </div>
       </div>
       <div className="table-wrap">
         <table className="admin-table">
@@ -280,6 +251,7 @@ function ProductsTab({
               <th>Buy</th>
               <th>Sell</th>
               <th>Stock</th>
+              <th>Status</th>
               <th>Scroll (s)</th>
               <th>Actions</th>
             </tr>
@@ -299,6 +271,11 @@ function ProductsTab({
                 <td>{formatBdt(p.buyingPrice)}</td>
                 <td>{formatBdt(p.sellingPrice)}</td>
                 <td>{p.stock}</td>
+                <td>
+                  <span className={`status-pill ${p.status.replace(/\s/g, '').toLowerCase()}`}>
+                    {p.status}
+                  </span>
+                </td>
                 <td>{p.imageScrollSeconds}s</td>
                 <td className="actions">
                   <Link to={`/product/${p.slug}`} className="icon-btn dark">
@@ -334,9 +311,30 @@ function ProductsTab({
 }
 
 function ProductModal({ product, onClose }: { product: Product; onClose: () => void }) {
-  const { upsertProduct, categories, addCategory, sizes, colors } = useStore()
+  const { upsertProduct, categories, addCategory } = useStore()
   const [form, setForm] = useState(product)
   const [newCat, setNewCat] = useState('')
+  const [newSize, setNewSize] = useState('')
+  const [newColorName, setNewColorName] = useState('')
+  const [newColorHex, setNewColorHex] = useState('#d4b56a')
+
+  const addSizeToProduct = () => {
+    const value = newSize.trim()
+    if (!value || form.sizes.includes(value)) return
+    setForm({ ...form, sizes: [...form.sizes, value] })
+    setNewSize('')
+  }
+
+  const addColorToProduct = () => {
+    const name = newColorName.trim()
+    if (!name) return
+    const next: ColorOption = { name, hex: newColorHex }
+    setForm({
+      ...form,
+      colors: [...form.colors.filter((c) => c.name !== name), next],
+    })
+    setNewColorName('')
+  }
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -353,11 +351,19 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
         <h2>{product.name ? 'Edit product' : 'Add product'}</h2>
         <label>
           Name
-          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
         </label>
         <label>
           Code
           <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+        </label>
+        <label>
+          Description
+          <textarea
+            rows={4}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
         </label>
         <div className="form-grid two">
           <label>
@@ -417,42 +423,89 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             onChange={(e) => setForm({ ...form, imageScrollSeconds: Number(e.target.value) })}
           />
         </label>
-        <p>Sizes</p>
-        <div className="chip-row">
-          {sizes.map((s) => (
-            <button
-              type="button"
-              key={s}
-              className={form.sizes.includes(s) ? 'chip on' : 'chip'}
-              onClick={() =>
-                setForm({
-                  ...form,
-                  sizes: form.sizes.includes(s) ? form.sizes.filter((x) => x !== s) : [...form.sizes, s],
-                })
-              }
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-        <p>Colours</p>
-        <div className="chip-row">
-          {colors.map((s) => (
-            <button
-              type="button"
-              key={s}
-              className={form.colors.includes(s) ? 'chip on' : 'chip'}
-              onClick={() =>
-                setForm({
-                  ...form,
-                  colors: form.colors.includes(s) ? form.colors.filter((x) => x !== s) : [...form.colors, s],
-                })
-              }
-            >
-              {s}
-            </button>
-          ))}
-        </div>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={form.hasSize}
+            onChange={(e) => setForm({ ...form, hasSize: e.target.checked })}
+          />
+          Show size option on this product
+        </label>
+        {form.hasSize && (
+          <div className="option-box">
+            <p>Sizes</p>
+            <div className="chip-row">
+              {form.sizes.map((s) => (
+                <button
+                  type="button"
+                  key={s}
+                  className="chip on"
+                  onClick={() => setForm({ ...form, sizes: form.sizes.filter((x) => x !== s) })}
+                >
+                  {s} ×
+                </button>
+              ))}
+            </div>
+            <div className="inline-add">
+              <input
+                value={newSize}
+                onChange={(e) => setNewSize(e.target.value)}
+                placeholder="Add size"
+              />
+              <button type="button" className="ghost" onClick={addSizeToProduct}>
+                Add size
+              </button>
+            </div>
+          </div>
+        )}
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={form.hasColor}
+            onChange={(e) => setForm({ ...form, hasColor: e.target.checked })}
+          />
+          Show colour option on this product
+        </label>
+        {form.hasColor && (
+          <div className="option-box">
+            <p>Colours</p>
+            <div className="chip-row">
+              {form.colors.map((c) => (
+                <button
+                  type="button"
+                  key={c.name}
+                  className="chip on color-chip"
+                  onClick={() => setForm({ ...form, colors: form.colors.filter((x) => x.name !== c.name) })}
+                >
+                  <i style={{ background: c.hex }} />
+                  {c.name}
+                  <span>{c.hex}</span> ×
+                </button>
+              ))}
+            </div>
+            <div className="color-add">
+              <input
+                type="color"
+                value={newColorHex}
+                onChange={(e) => setNewColorHex(e.target.value)}
+                title="Colour plate"
+              />
+              <input
+                value={newColorHex}
+                onChange={(e) => setNewColorHex(e.target.value)}
+                placeholder="#d4b56a"
+              />
+              <input
+                value={newColorName}
+                onChange={(e) => setNewColorName(e.target.value)}
+                placeholder="Colour name"
+              />
+              <button type="button" className="ghost" onClick={addColorToProduct}>
+                Add colour
+              </button>
+            </div>
+          </div>
+        )}
         <label>
           Images (as many as you like)
           <input
@@ -500,6 +553,7 @@ function contactLinks(order: Order) {
 
 function OrdersTab({ onView }: { onView: (o: Order) => void }) {
   const { orders, updateOrder } = useStore()
+  const [drafts, setDrafts] = useState<Record<string, OrderStatus>>({})
   return (
     <section className="admin-panel">
       <h2>Orders</h2>
@@ -517,6 +571,8 @@ function OrdersTab({ onView }: { onView: (o: Order) => void }) {
         <tbody>
           {orders.map((o) => {
             const links = contactLinks(o)
+            const draft = drafts[o.id] ?? o.status
+            const dirty = draft !== o.status
             return (
               <tr key={o.id}>
                 <td className="mono">
@@ -526,14 +582,33 @@ function OrdersTab({ onView }: { onView: (o: Order) => void }) {
                 <td>{o.guest ? 'Unknown' : o.customerName}</td>
                 <td>{o.payment}</td>
                 <td>
-                  <select
-                    value={o.status}
-                    onChange={(e) => updateOrder(o.id, { status: e.target.value as OrderStatus })}
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
+                  <div className="status-edit">
+                    <select
+                      value={draft}
+                      onChange={(e) =>
+                        setDrafts((d) => ({ ...d, [o.id]: e.target.value as OrderStatus }))
+                      }
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s}>{s}</option>
+                      ))}
+                    </select>
+                    {dirty && (
+                      <button
+                        className="gold-btn compact"
+                        onClick={() => {
+                          updateOrder(o.id, { status: draft })
+                          setDrafts((d) => {
+                            const next = { ...d }
+                            delete next[o.id]
+                            return next
+                          })
+                        }}
+                      >
+                        Submit
+                      </button>
+                    )}
+                  </div>
                 </td>
                 <td>BDT {formatBdt(o.total)}</td>
                 <td className="actions">
@@ -666,6 +741,7 @@ function CustomersTab({ onOpen }: { onOpen: (key: string) => void }) {
 
 function CustomerModal({ customerKey, onClose }: { customerKey: string; onClose: () => void }) {
   const { orders, updateOrder } = useStore()
+  const [drafts, setDrafts] = useState<Record<string, OrderStatus>>({})
   const list = orders.filter((o) => customerKeyOf(o) === customerKey)
   const guest = list.every((o) => o.guest)
   const first = list[0]
@@ -685,20 +761,39 @@ function CustomerModal({ customerKey, onClose }: { customerKey: string; onClose:
         </p>
         <h3>Running</h3>
         {running.length === 0 && <p className="muted">None</p>}
-        {running.map((o) => (
-          <div key={o.id} className="order-row">
-            <span>{o.trackingNumber}</span>
-            <select
-              value={o.status}
-              onChange={(e) => updateOrder(o.id, { status: e.target.value as OrderStatus })}
-            >
-              {STATUSES.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-            <Link to={`/track/${o.trackingNumber}`}>Track</Link>
-          </div>
-        ))}
+        {running.map((o) => {
+          const draft = drafts[o.id] ?? o.status
+          const dirty = draft !== o.status
+          return (
+            <div key={o.id} className="order-row">
+              <span>{o.trackingNumber}</span>
+              <select
+                value={draft}
+                onChange={(e) => setDrafts((d) => ({ ...d, [o.id]: e.target.value as OrderStatus }))}
+              >
+                {STATUSES.map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+              {dirty && (
+                <button
+                  className="gold-btn compact"
+                  onClick={() => {
+                    updateOrder(o.id, { status: draft })
+                    setDrafts((d) => {
+                      const next = { ...d }
+                      delete next[o.id]
+                      return next
+                    })
+                  }}
+                >
+                  Submit
+                </button>
+              )}
+              <Link to={`/track/${o.trackingNumber}`}>Track</Link>
+            </div>
+          )
+        })}
         <h3>Past</h3>
         {past.map((o) => (
           <p key={o.id}>
@@ -770,7 +865,8 @@ function MediaTab() {
   const [type, setType] = useState<CampaignType>('offer')
   const [productId, setProductId] = useState(products[0]?.id ?? '')
   const [value, setValue] = useState('10')
-  const [days, setDays] = useState(7)
+  const [startAt, setStartAt] = useState(toInputDate(new Date().toISOString()))
+  const [endAt, setEndAt] = useState(toInputDate(new Date(Date.now() + 7 * 86400000).toISOString()))
   const [code, setCode] = useState('HEAVEN10')
 
   const addSlide = async (files: FileList | null, kind: 'hero' | 'ad') => {
@@ -871,9 +967,16 @@ function MediaTab() {
           <input value={value} onChange={(e) => setValue(e.target.value)} />
         </label>
         <label>
-          Days
-          <input type="number" value={days} onChange={(e) => setDays(Number(e.target.value))} />
+          Start date
+          <input type="date" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
         </label>
+        <label>
+          End date
+          <input type="date" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
+        </label>
+        <p className="day-count">
+          Duration: {campaignDays(startAt, endAt)} day{campaignDays(startAt, endAt) === 1 ? '' : 's'}
+        </p>
         {type === 'coupon' && (
           <label>
             Coupon code
@@ -890,8 +993,8 @@ function MediaTab() {
             title,
             productId,
             value,
-            days,
-            startAt: new Date().toISOString(),
+            startAt: new Date(startAt).toISOString(),
+            endAt: new Date(endAt).toISOString(),
             code: type === 'coupon' ? code : undefined,
           }
           setMedia({ ...media, campaigns: [next, ...media.campaigns] })
@@ -902,7 +1005,8 @@ function MediaTab() {
       <ul>
         {media.campaigns.map((c) => (
           <li key={c.id}>
-            {c.type} · {c.title} · {c.days} days
+            {c.type} · {c.title} · {toInputDate(c.startAt)} → {toInputDate(c.endAt)} ·{' '}
+            {campaignDays(c.startAt, c.endAt)} days
             <button
               className="text-btn"
               onClick={() =>
@@ -920,6 +1024,15 @@ function MediaTab() {
 
 function SettingsTab() {
   const { settings, setSettings, backup, restore } = useStore()
+  const [mod, setMod] = useState({ name: '', email: '', phone: '', password: '' })
+
+  const addModerator = () => {
+    if (!mod.name || !mod.email || !mod.password) return
+    const next: Moderator = { id: `mod-${Date.now()}`, ...mod }
+    setSettings({ ...settings, moderators: [...settings.moderators, next] })
+    setMod({ name: '', email: '', phone: '', password: '' })
+  }
+
   return (
     <section className="admin-panel">
       <h2>Settings</h2>
@@ -962,6 +1075,141 @@ function SettingsTab() {
         />
         Login alerts
       </label>
+
+      <h3>Store payment accounts</h3>
+      <label>
+        Card name
+        <input
+          value={settings.payCardName}
+          onChange={(e) => setSettings({ ...settings, payCardName: e.target.value })}
+        />
+      </label>
+      <label>
+        Card number
+        <input
+          value={settings.payCardNumber}
+          onChange={(e) => setSettings({ ...settings, payCardNumber: e.target.value })}
+        />
+      </label>
+      <label>
+        bKash number
+        <input
+          value={settings.payBkash}
+          onChange={(e) => setSettings({ ...settings, payBkash: e.target.value })}
+        />
+      </label>
+      <label>
+        Nagad number
+        <input
+          value={settings.payNagad}
+          onChange={(e) => setSettings({ ...settings, payNagad: e.target.value })}
+        />
+      </label>
+
+      <h3>District delivery charges</h3>
+      <label>
+        Default shipping
+        <input
+          type="number"
+          value={settings.defaultShipping}
+          onChange={(e) => setSettings({ ...settings, defaultShipping: Number(e.target.value) })}
+        />
+      </label>
+      <div className="table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>District</th>
+              <th>Charge (BDT)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {DISTRICTS.map((d) => (
+              <tr key={d}>
+                <td>{d}</td>
+                <td>
+                  <input
+                    type="number"
+                    value={settings.deliveryCharges[d] ?? settings.defaultShipping}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        deliveryCharges: { ...settings.deliveryCharges, [d]: Number(e.target.value) },
+                      })
+                    }
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Moderators</h3>
+      <p className="muted">Staff who can run products, orders, customers, payments, and media.</p>
+      <div className="form-grid two">
+        <label>
+          Name
+          <input value={mod.name} onChange={(e) => setMod({ ...mod, name: e.target.value })} />
+        </label>
+        <label>
+          Email
+          <input value={mod.email} onChange={(e) => setMod({ ...mod, email: e.target.value })} />
+        </label>
+        <label>
+          Phone
+          <input value={mod.phone} onChange={(e) => setMod({ ...mod, phone: e.target.value })} />
+        </label>
+        <label>
+          Password
+          <input
+            type="password"
+            value={mod.password}
+            onChange={(e) => setMod({ ...mod, password: e.target.value })}
+          />
+        </label>
+      </div>
+      <button type="button" className="gold-btn compact" onClick={addModerator}>
+        Add moderator
+      </button>
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {settings.moderators.length === 0 && (
+            <tr>
+              <td colSpan={4}>No moderators yet.</td>
+            </tr>
+          )}
+          {settings.moderators.map((m) => (
+            <tr key={m.id}>
+              <td>{m.name}</td>
+              <td>{m.email}</td>
+              <td>{m.phone}</td>
+              <td>
+                <button
+                  className="text-btn"
+                  onClick={() =>
+                    setSettings({
+                      ...settings,
+                      moderators: settings.moderators.filter((x) => x.id !== m.id),
+                    })
+                  }
+                >
+                  Remove
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       <h3>Data backup</h3>
       <button
         className="ghost"

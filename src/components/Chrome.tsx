@@ -157,7 +157,7 @@ export function CartDrawer() {
               <div>
                 <strong>{line.product?.name}</strong>
                 <p>
-                  {line.size} · {line.color}
+                  {[line.size, line.color].filter(Boolean).join(' · ')}
                 </p>
                 <p>৳ {formatBdt(line.product?.sellingPrice ?? 0)}</p>
                 <div className="qty">

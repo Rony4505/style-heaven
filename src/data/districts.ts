@@ -64,3 +64,23 @@ export const DISTRICTS = [
   'Jamalpur',
   'Sherpur',
 ]
+
+export function defaultDeliveryCharges() {
+  const nearby = new Set([
+    'Dhaka',
+    'Gazipur',
+    'Narayanganj',
+    'Manikganj',
+    'Munshiganj',
+    'Narsingdi',
+  ])
+  const hills = new Set(['Rangamati', 'Bandarban', 'Khagrachhari'])
+  return Object.fromEntries(
+    DISTRICTS.map((d) => {
+      if (d === 'Dhaka') return [d, 80]
+      if (nearby.has(d)) return [d, 120]
+      if (hills.has(d)) return [d, 250]
+      return [d, 160]
+    }),
+  ) as Record<string, number>
+}
