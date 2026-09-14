@@ -40,7 +40,7 @@ type Store = {
   }) => Order
 }
 
-const KEY = 'style-heaven-store-v1'
+const KEY = 'style-heaven-store-v2'
 const StoreContext = createContext<Store | null>(null)
 
 function seedOrders(): Order[] {

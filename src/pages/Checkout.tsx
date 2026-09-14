@@ -112,7 +112,7 @@ export function CheckoutPage() {
                 <span className="silk-badge">100% Silk</span>
               </div>
               <div>
-                <h3>{first.name.replace('Signature ', '')}</h3>
+                <h3>Style Heaven {first.name.replace('Signature ', '')}</h3>
                 <p>
                   {first.material} • {filled[0].size}
                 </p>
@@ -297,7 +297,8 @@ export function CheckoutPage() {
                       <b>▲</b> SSLCommerz
                     </span>
                   )}
-                  <small>{m.label.includes('Gateway') ? 'Secure Gateway' : m.label}</small>
+                  {m.id === 'card' && <small>Visa / Mastercard</small>}
+                  {m.id === 'ssl' && <small>Secure Gateway</small>}
                 </button>
               ))}
             </div>

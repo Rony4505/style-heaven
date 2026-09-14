@@ -182,22 +182,15 @@ function slugify(value: string) {
 }
 
 export function createCatalog(): Product[] {
-  const products: Product[] = []
+  const primary: Product[] = []
+  const rest: Product[] = []
   SEEDS.forEach((seed, seedIndex) => {
     SHADES.forEach((shade, shadeIndex) => {
       const stock = seed.stocks[shadeIndex] ?? 8
       const sku = `${seed.skuBase}-${String(shadeIndex + 1).padStart(2, '0')}`
-      const isHero = seed.featured && shadeIndex === 0
-      const image =
-        isHero || seed.name === 'Signature Silk Scarf'
-          ? shadeIndex === 0
-            ? seed.image
-            : SHADE_IMAGE[shade] || seed.image
-          : shadeIndex === 0
-            ? seed.image
-            : SHADE_IMAGE[shade] || seed.image
-
-      products.push({
+      const isHero = Boolean(seed.featured && shadeIndex === 0)
+      const image = shadeIndex === 0 ? seed.image : SHADE_IMAGE[shade] || seed.image
+      const product: Product = {
         id: `p-${seedIndex + 1}-${shadeIndex + 1}`,
         slug: slugify(`${seed.name}-${shade}`),
         name: seed.name,
@@ -216,11 +209,13 @@ export function createCatalog(): Product[] {
         origin: 'Handwoven in Bengal',
         shade,
         featured: isHero,
-        shopVisible: seed.shopVisible && shadeIndex < 3,
-      })
+        shopVisible: Boolean(seed.shopVisible && shadeIndex < 3),
+      }
+      if (shadeIndex === 0) primary.push(product)
+      else rest.push(product)
     })
   })
-  return products
+  return [...primary, ...rest]
 }
 
 export const SIGNATURE_SLUG = 'signature-silk-scarf-jamdani-cream'
