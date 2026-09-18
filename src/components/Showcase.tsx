@@ -23,13 +23,35 @@ function isLight(hex: string) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 150
 }
 
+const ALL = '__all__'
+
 export function Showcase({ seconds = 6 }: { seconds?: number }) {
-  const { products, addToCart, lang } = useStore()
+  const { products, orders, categories, addToCart, lang } = useStore()
   const t = tx(lang)
-  const list = useMemo(
+  const visible = useMemo(
     () => products.filter((p) => p.shopVisible !== false && p.stock > 0 && p.images[0]),
     [products],
   )
+  // Units sold per product, so each category can lead with its best seller.
+  const sold = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const o of orders) {
+      for (const it of o.items) map.set(it.productId, (map.get(it.productId) ?? 0) + it.qty)
+    }
+    return map
+  }, [orders])
+  const tabs = useMemo(() => {
+    const present = new Set(visible.map((p) => p.category))
+    const ordered = categories.filter((c) => present.has(c))
+    for (const c of present) if (!ordered.includes(c)) ordered.push(c)
+    return ordered
+  }, [visible, categories])
+  const [category, setCategory] = useState(ALL)
+  const list = useMemo(() => {
+    const pool = category === ALL ? visible : visible.filter((p) => p.category === category)
+    const score = (p: Product) => (sold.get(p.id) ?? 0) * 10 + (p.featured ? 1 : 0)
+    return [...pool].sort((a, b) => score(b) - score(a))
+  }, [visible, category, sold])
   const [index, setIndex] = useState(0)
   const [colorIdx, setColorIdx] = useState(0)
   const [dir, setDir] = useState<'next' | 'prev'>('next')
@@ -46,6 +68,13 @@ export function Showcase({ seconds = 6 }: { seconds?: number }) {
     setColorIdx(0)
   }, [product?.id])
 
+  const pickCategory = (next: string) => {
+    if (next === category) return
+    setCategory(next)
+    setDir('next')
+    setIndex(0)
+  }
+
   useEffect(() => {
     if (list.length < 2 || paused) return
     const id = window.setInterval(() => {
@@ -55,7 +84,13 @@ export function Showcase({ seconds = 6 }: { seconds?: number }) {
     return () => window.clearInterval(id)
   }, [list.length, seconds, paused])
 
-  if (!product) return null
+  if (!product) {
+    if (category !== ALL && visible.length) {
+      setCategory(ALL)
+      setIndex(0)
+    }
+    return null
+  }
 
   const go = (step: number) => {
     setDir(step > 0 ? 'next' : 'prev')
@@ -100,13 +135,34 @@ export function Showcase({ seconds = 6 }: { seconds?: number }) {
       <div className="sc-grid">
         <aside className="sc-left">
           <p className="sc-kicker">{t.showcaseKicker}</p>
+          {tabs.length > 1 && (
+            <nav className="sc-tabs" aria-label="Categories">
+              <button
+                type="button"
+                className={category === ALL ? 'on' : ''}
+                onClick={() => pickCategory(ALL)}
+              >
+                {t.allProducts}
+              </button>
+              {tabs.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={category === c ? 'on' : ''}
+                  onClick={() => pickCategory(c)}
+                >
+                  {c}
+                </button>
+              ))}
+            </nav>
+          )}
           <h2 key={product.id} className="sc-title">
             {t.showcaseTitle1}
             <br />
             <em>{t.showcaseTitle2}</em>
           </h2>
           <p className="sc-sub">{product.description || product.subtitle}</p>
-          <ul className="sc-rail">
+          <ul className="sc-rail" key={category}>
             {list.map((p, i) => (
               <li key={p.id}>
                 <button
@@ -141,7 +197,10 @@ export function Showcase({ seconds = 6 }: { seconds?: number }) {
         </div>
 
         <aside className="sc-right">
-          <p className="sc-collection">{product.collection}</p>
+          <p className="sc-collection">
+            {product.category} · {product.collection}
+            {index === 0 && list.length > 1 && <span className="sc-popular">{t.mostPopular}</span>}
+          </p>
           <h3 key={`${product.id}-name`} className="sc-name">
             {product.name}
           </h3>

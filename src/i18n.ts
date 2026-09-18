@@ -49,6 +49,8 @@ const en = {
   showcaseTitle1: 'Wear confidence.',
   showcaseTitle2: 'Define your style.',
   shopNow: 'Shop now',
+  allProducts: 'All',
+  mostPopular: 'Most popular',
 }
 
 const bn: typeof en = {
@@ -100,6 +102,8 @@ const bn: typeof en = {
   showcaseTitle1: 'আত্মবিশ্বাস পরুন।',
   showcaseTitle2: 'নিজের স্টাইল গড়ুন।',
   shopNow: 'এখনই কিনুন',
+  allProducts: 'সব',
+  mostPopular: 'সবচেয়ে জনপ্রিয়',
 }
 
 const dict = { en, bn }
