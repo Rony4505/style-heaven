@@ -12,7 +12,7 @@ const IMG = {
 }
 
 // Bump when the seed catalog changes so browsers with an older saved catalog pick up the new products.
-export const CATALOG_VERSION = 2
+export const CATALOG_VERSION = 3
 
 function slugify(value: string) {
   return value
@@ -52,7 +52,7 @@ const SEEDS: Seed[] = [
     sell: 890,
     stock: 120,
     images: [IMG.teeBlack, IMG.teeCream],
-    colors: ['Black', 'Cream', 'Olive'],
+    colors: ['Black', 'Cream'],
     sizes: TOP_SIZES,
     material: '240 GSM combed cotton',
     description: 'A boxy crew-neck tee in heavyweight combed cotton. Pre-shrunk, ribbed collar, built to keep its shape.',
@@ -68,7 +68,7 @@ const SEEDS: Seed[] = [
     sell: 950,
     stock: 80,
     images: [IMG.teeCream, IMG.teeBlack],
-    colors: ['Cream', 'Black', 'Sand'],
+    colors: ['Cream', 'Black'],
     sizes: TOP_SIZES,
     material: '220 GSM cotton jersey',
     description: 'Drop-shoulder oversized fit with a soft, washed hand feel.',
@@ -112,7 +112,7 @@ const SEEDS: Seed[] = [
     buy: 950,
     sell: 1950,
     stock: 60,
-    images: [IMG.oxford, IMG.linen],
+    images: [IMG.oxford],
     colors: ['Sky Blue', 'White', 'Navy'],
     sizes: TOP_SIZES,
     material: 'Oxford cotton',
@@ -127,7 +127,7 @@ const SEEDS: Seed[] = [
     buy: 1050,
     sell: 2150,
     stock: 35,
-    images: [IMG.linen, IMG.oxford],
+    images: [IMG.linen],
     colors: ['Sand', 'Olive', 'White'],
     sizes: TOP_SIZES,
     material: '100% linen',
@@ -143,7 +143,7 @@ const SEEDS: Seed[] = [
     sell: 2890,
     stock: 50,
     images: [IMG.jeansIndigo, IMG.jeansLight],
-    colors: ['Indigo', 'Black'],
+    colors: ['Indigo', 'Light Wash'],
     sizes: WAISTS,
     material: '12 oz stretch denim',
     description: 'Slim-fit jeans in a deep indigo rinse with contrast stitching and a touch of stretch.',

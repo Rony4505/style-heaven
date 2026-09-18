@@ -80,7 +80,9 @@ export function Showcase({ seconds = 6 }: { seconds?: number }) {
     setTilt({ x: px * 10, y: -py * 6 })
   }
 
-  const image = product.images[Math.min(colorIdx, product.images.length - 1)] || product.images[0]
+  // Only swap the photo per colour when the product actually has one image per colour.
+  const perColorImages = product.images.length >= colors.length
+  const image = (perColorImages ? product.images[colorIdx % colors.length] : undefined) || product.images[0]
 
   return (
     <section
