@@ -77,7 +77,7 @@ export function Showcase({ seconds = 6 }: { seconds?: number }) {
     if (!box) return
     const px = (e.clientX - box.left) / box.width - 0.5
     const py = (e.clientY - box.top) / box.height - 0.5
-    setTilt({ x: px * 26, y: -py * 18 })
+    setTilt({ x: px * 10, y: -py * 6 })
   }
 
   const image = product.images[Math.min(colorIdx, product.images.length - 1)] || product.images[0]
@@ -116,7 +116,7 @@ export function Showcase({ seconds = 6 }: { seconds?: number }) {
                   aria-label={p.name}
                   type="button"
                 >
-                  <img src={p.images[0]} alt="" />
+                  <img src={p.images[0]} alt="" className={p.cutout ? 'cutout' : ''} />
                 </button>
               </li>
             ))}
@@ -125,7 +125,7 @@ export function Showcase({ seconds = 6 }: { seconds?: number }) {
 
         <div className="sc-stage" ref={stage} onMouseMove={onMove}>
           <div className="sc-ring" />
-          <div key={`${product.id}-${colorIdx}`} className={`sc-card ${dir}`}>
+          <div key={`${product.id}-${colorIdx}`} className={`sc-card ${dir}${product.cutout ? ' cutout' : ''}`}>
             <img src={image} alt={product.name} draggable={false} />
             <span className="sc-tag">{product.code}</span>
           </div>

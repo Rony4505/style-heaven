@@ -218,22 +218,23 @@ function ProductsTab({
               name: '',
               subtitle: '',
               code: 'SH-NEW-01',
-              category: 'Scarves',
-              collection: 'Signature Collection',
+              category: 'T-Shirts',
+              collection: 'Essentials',
               buyingPrice: 0,
               sellingPrice: 0,
               stock: 0,
               status: 'Out of Stock',
-              images: ['/images/silk-gold.jpg'],
+              images: ['/products/tee-black.webp'],
               description: '',
               sizes: ['M'],
-              colors: [{ name: 'Champagne Gold', hex: '#d4b56a' }],
-              material: '100% mulberry silk',
-              origin: 'Handwoven in Bengal',
+              colors: [{ name: 'Black', hex: '#141414' }],
+              material: '100% cotton',
+              origin: 'Made in Bangladesh',
               imageScrollSeconds: 4,
               hasSize: true,
               hasColor: true,
               shopVisible: true,
+              cutout: true,
             })
           }
         >
@@ -422,6 +423,14 @@ function ProductModal({ product, onClose }: { product: Product; onClose: () => v
             value={form.imageScrollSeconds}
             onChange={(e) => setForm({ ...form, imageScrollSeconds: Number(e.target.value) })}
           />
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={form.cutout ?? false}
+            onChange={(e) => setForm({ ...form, cutout: e.target.checked })}
+          />
+          Cutout image (transparent background, floats in the showcase)
         </label>
         <label className="check">
           <input

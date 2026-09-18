@@ -17,7 +17,8 @@ export function HomePage() {
   }, [ready])
   const slides = media.heroSlides.length
     ? media.heroSlides.map((s) => s.image)
-    : ['/images/hero-model.jpg']
+    : ['/products/tee-black.webp']
+  const cutoutHero = slides.every((s) => s.startsWith('/products/'))
   const ads = media.ads
   const offers = activeCampaigns(media.campaigns).filter((c) => c.type !== 'coupon')
 
@@ -26,7 +27,7 @@ export function HomePage() {
     <div className="home">
       <img className="home-stone" src="/images/hero-stone.jpg" alt="" />
       <ImageCarousel
-        className="home-model-carousel"
+        className={`home-model-carousel${cutoutHero ? ' cutout' : ''}`}
         images={slides}
         seconds={media.heroSeconds}
         alt="Style Heaven product"

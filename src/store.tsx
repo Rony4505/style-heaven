@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { createCatalog } from './data/catalog'
+import { CATALOG_VERSION, createCatalog } from './data/catalog'
 import { defaultDeliveryCharges } from './data/districts'
 import {
   DEFAULT_CATEGORIES,
@@ -99,16 +99,16 @@ function seedMedia(): MediaSettings {
     heroSeconds: 5,
     adSeconds: 6,
     heroSlides: [
-      { id: 'h1', image: '/images/hero-model.jpg', title: 'Jamdani Saree' },
-      { id: 'h2', image: '/images/scarf-jamdani.jpg', title: 'Signature Scarf' },
-      { id: 'h3', image: '/images/silk-gold.jpg', title: 'Champagne Silk' },
-      { id: 'h4', image: '/images/silk-charcoal.jpg', title: 'Atelier Kaftan' },
+      { id: 'h1', image: '/products/tee-black.webp', title: 'Essential Black Tee' },
+      { id: 'h2', image: '/products/shirt-oxford-blue.webp', title: 'Oxford Shirt' },
+      { id: 'h3', image: '/products/jeans-indigo.webp', title: 'Slim Indigo Jeans' },
+      { id: 'h4', image: '/products/hoodie-charcoal.webp', title: 'Charcoal Hoodie' },
     ],
     ads: [
       {
         id: 'a1',
-        image: '/images/silk-gold.jpg',
-        title: 'Heritage week — complimentary shipping',
+        image: '/products/tee-cream.webp',
+        title: 'New season — complimentary shipping',
         link: '/shop',
       },
     ],
@@ -220,6 +220,7 @@ type Persisted = {
   media: MediaSettings
   settings: SiteSettings
   lang: Lang
+  catalogVersion?: number
 }
 
 function migrateProduct(p: Product): Product {
@@ -301,23 +302,43 @@ function load(): Persisted {
     media: seedMedia(),
     settings: seedSettings(),
     lang: 'en',
+    catalogVersion: CATALOG_VERSION,
   }
   try {
     const raw = localStorage.getItem(KEY) || localStorage.getItem(PREV_KEY)
     if (!raw) return fallback
     const parsed = JSON.parse(raw) as Partial<Persisted>
-    const products = (parsed.products?.length ? parsed.products : catalog).map(migrateProduct)
+    // A stale seed catalog (older demo products) is swapped for the current one while
+    // keeping the shopper's own data (cart, account, orders, settings).
+    const staleCatalog = (parsed.catalogVersion ?? 1) < CATALOG_VERSION
+    const products = (!staleCatalog && parsed.products?.length ? parsed.products : catalog).map(
+      migrateProduct,
+    )
     const media = parsed.media ?? fallback.media
+    const isOldDemoImage = (src: string) => src.startsWith('/images/')
+    const heroSlides =
+      staleCatalog && media.heroSlides?.every((s) => isOldDemoImage(s.image))
+        ? fallback.media.heroSlides
+        : media.heroSlides
+    const ads =
+      staleCatalog && media.ads?.every((a) => isOldDemoImage(a.image)) ? fallback.media.ads : media.ads
     return {
       ...fallback,
       ...parsed,
       products,
+      cart: staleCatalog ? [] : parsed.cart ?? [],
+      categories: staleCatalog ? fallback.categories : parsed.categories ?? fallback.categories,
+      sizes: staleCatalog ? fallback.sizes : parsed.sizes ?? fallback.sizes,
+      colors: staleCatalog ? fallback.colors : parsed.colors ?? fallback.colors,
       media: {
         ...fallback.media,
         ...media,
+        heroSlides,
+        ads,
         campaigns: (media.campaigns ?? []).map(migrateCampaign),
       },
       settings: migrateSettings(parsed.settings),
+      catalogVersion: CATALOG_VERSION,
     }
   } catch {
     return fallback
@@ -373,6 +394,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       media,
       settings,
       lang,
+      catalogVersion: CATALOG_VERSION,
     }
     localStorage.setItem(KEY, JSON.stringify(payload))
   }, [products, cart, user, users, orders, categories, sizes, colors, media, settings, lang, ready])

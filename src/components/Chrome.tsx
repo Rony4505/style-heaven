@@ -57,11 +57,14 @@ export function MenuDrawer() {
           <Link to="/collections" onClick={() => setMenuOpen(false)}>
             {t.collections}
           </Link>
-          <Link to="/shop?category=Scarves" onClick={() => setMenuOpen(false)}>
-            Scarves
+          <Link to="/shop?category=T-Shirts" onClick={() => setMenuOpen(false)}>
+            T-Shirts
           </Link>
-          <Link to="/shop?category=Sarees" onClick={() => setMenuOpen(false)}>
-            Sarees
+          <Link to="/shop?category=Shirts" onClick={() => setMenuOpen(false)}>
+            Shirts
+          </Link>
+          <Link to="/shop?category=Jeans" onClick={() => setMenuOpen(false)}>
+            Jeans
           </Link>
           <Link to="/account" onClick={() => setMenuOpen(false)}>
             {t.account}

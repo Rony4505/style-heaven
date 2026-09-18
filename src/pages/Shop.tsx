@@ -17,7 +17,7 @@ function ShopCard({ product }: { product: Product }) {
 
   return (
     <article className="product-card shop-card">
-      <Link to={`/product/${product.slug}`} className="card-img">
+      <Link to={`/product/${product.slug}`} className={`card-img${product.cutout ? ' cutout' : ''}`}>
         <ImageCarousel images={product.images} seconds={product.imageScrollSeconds} alt={product.name} />
         {deal && <span className="deal-pill">{deal.title}</span>}
       </Link>
@@ -108,28 +108,22 @@ export function CollectionsPage() {
   const t = tx(lang)
   const collections = [
     {
-      title: 'Signature Scarves',
-      copy: 'Jamdani motifs on mulberry silk.',
-      to: '/shop?category=Scarves',
-      image: '/images/scarf-jamdani.jpg',
+      title: 'T-Shirts',
+      copy: 'Heavyweight tees, polos and hoodies.',
+      to: '/shop?category=T-Shirts',
+      image: '/products/tee-black.webp',
     },
     {
-      title: 'Sarees',
-      copy: 'Heritage, woven in light.',
-      to: '/shop?category=Sarees',
-      image: '/images/hero-model.jpg',
+      title: 'Shirts',
+      copy: 'Oxford and linen, cut to breathe.',
+      to: '/shop?category=Shirts',
+      image: '/products/shirt-oxford-blue.webp',
     },
     {
-      title: 'Ready to Wear',
-      copy: 'Blouses, kaftans, evening silk.',
-      to: '/shop?category=Dresses',
-      image: '/images/silk-charcoal.jpg',
-    },
-    {
-      title: 'Maison',
-      copy: 'Silk for the private rooms of the house.',
-      to: '/shop?category=Accessories',
-      image: '/images/silk-ivory.jpg',
+      title: 'Jeans',
+      copy: 'Slim and relaxed fits in rinse and light wash.',
+      to: '/shop?category=Jeans',
+      image: '/products/jeans-indigo.webp',
     },
   ]
 
@@ -144,7 +138,7 @@ export function CollectionsPage() {
         <div className="collection-grid">
           {collections.map((c) => (
             <Link to={c.to} className="collection-card" key={c.title}>
-              <img src={c.image} alt="" />
+              <img src={c.image} alt="" className="cutout" />
               <div>
                 <h2>{c.title}</h2>
                 <p>{c.copy}</p>

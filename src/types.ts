@@ -35,6 +35,8 @@ export type Product = {
   imageScrollSeconds: number
   featured?: boolean
   shopVisible?: boolean
+  /** Image has a transparent background, so it floats without a card frame. */
+  cutout?: boolean
 }
 
 export type CartItem = {
@@ -165,6 +167,17 @@ const NAMED_HEX: Record<string, string> = {
   Midnight: '#1b2436',
   Ivory: '#f6f1e6',
   Bronze: '#b08d57',
+  Black: '#141414',
+  Cream: '#efe6d3',
+  Olive: '#5d6b3f',
+  Sand: '#cdb593',
+  Burgundy: '#6b1f2a',
+  Navy: '#1c2a4a',
+  Forest: '#1f4a35',
+  'Sky Blue': '#9dbfe0',
+  White: '#f4f4f2',
+  Indigo: '#1f2f57',
+  'Light Wash': '#8fb0d1',
 }
 
 export function namedHex(name: string) {
@@ -195,36 +208,20 @@ export function toInputDate(iso: string) {
   return iso.slice(0, 10)
 }
 
-export const DEFAULT_CATEGORIES = [
-  'Scarves',
-  'Tops',
-  'Dresses',
-  'Loungewear',
-  'Accessories',
-  'Sarees',
-]
+export const DEFAULT_CATEGORIES = ['T-Shirts', 'Shirts', 'Jeans', 'Accessories']
 
-export const DEFAULT_SIZES = [
-  'XS',
-  'S',
-  'M',
-  'L',
-  'XL',
-  'Regular – 90cm x 200cm',
-  'Grande – 110cm x 220cm',
-  '90cm x 90cm',
-  '2.5m',
-  '5.5m with blouse piece',
-  'Standard pair',
-  'King pair',
-]
+export const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36']
 
 export const DEFAULT_COLORS = [
-  'Jamdani Cream',
-  'Champagne Gold',
-  'Blush',
+  'Black',
+  'White',
+  'Cream',
+  'Sand',
+  'Olive',
+  'Navy',
+  'Sky Blue',
+  'Burgundy',
+  'Indigo',
+  'Light Wash',
   'Charcoal',
-  'Midnight',
-  'Ivory',
-  'Bronze',
 ]

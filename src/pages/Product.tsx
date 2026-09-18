@@ -34,7 +34,7 @@ export function ProductPage() {
       <div className="product-split">
         <section className="product-media">
           <ImageCarousel
-            className="pdp-carousel"
+            className={`pdp-carousel${product.cutout ? ' cutout' : ''}`}
             images={product.images}
             seconds={product.imageScrollSeconds}
             alt={product.name}
@@ -51,17 +51,7 @@ export function ProductPage() {
             <span>/</span>
             <span>{product.collection}</span>
           </p>
-          <h1>
-            {product.featured ? (
-              <>
-                Signature
-                <br />
-                silk scarf
-              </>
-            ) : (
-              product.name
-            )}
-          </h1>
+          <h1>{product.name}</h1>
           <div className="diamond" />
           <p className="motif">{product.motif || product.material}</p>
           <p className="price">৳ {formatBdt(product.sellingPrice)}</p>
@@ -137,7 +127,12 @@ export function ProductPage() {
           <button className="icon-btn light" onClick={() => setOpen(false)}>
             <X />
           </button>
-          <ImageCarousel images={product.images} seconds={product.imageScrollSeconds} alt={product.name} />
+          <ImageCarousel
+            className={product.cutout ? 'pdp-media cutout' : ''}
+            images={product.images}
+            seconds={product.imageScrollSeconds}
+            alt={product.name}
+          />
         </div>
       )}
       <Chrome />
