@@ -1,13 +1,20 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Chrome } from '../components/Chrome'
 import { ImageCarousel } from '../components/Carousel'
 import { LangToggle } from '../components/LangToggle'
+import { Showcase } from '../components/Showcase'
 import { activeCampaigns, useStore } from '../store'
 import { tx } from '../i18n'
 
 export function HomePage() {
-  const { media, lang } = useStore()
+  const { media, lang, ready } = useStore()
   const t = tx(lang)
+
+  useEffect(() => {
+    if (!ready || window.location.hash !== '#showcase') return
+    document.getElementById('showcase')?.scrollIntoView({ block: 'start' })
+  }, [ready])
   const slides = media.heroSlides.length
     ? media.heroSlides.map((s) => s.image)
     : ['/images/hero-model.jpg']
@@ -15,6 +22,7 @@ export function HomePage() {
   const offers = activeCampaigns(media.campaigns).filter((c) => c.type !== 'coupon')
 
   return (
+    <div className="home-page">
     <div className="home">
       <img className="home-stone" src="/images/hero-stone.jpg" alt="" />
       <ImageCarousel
@@ -61,8 +69,15 @@ export function HomePage() {
             {offers[0].title} — {offers[0].value}
           </p>
         )}
+        <a href="#showcase" className="home-scroll">
+          <span /> {t.showcaseKicker}
+        </a>
       </main>
-      <Chrome />
+    </div>
+    <div id="showcase">
+      <Showcase seconds={media.heroSeconds + 1} />
+    </div>
+    <Chrome />
     </div>
   )
 }

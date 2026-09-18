@@ -45,6 +45,10 @@ const en = {
   cardHolder: 'Card name',
   storeCard: 'Card number',
   iPaid: 'I have sent the payment to this account',
+  showcaseKicker: 'New season',
+  showcaseTitle1: 'Wear confidence.',
+  showcaseTitle2: 'Define your style.',
+  shopNow: 'Shop now',
 }
 
 const bn: typeof en = {
@@ -92,6 +96,10 @@ const bn: typeof en = {
   cardHolder: 'কার্ডের নাম',
   storeCard: 'কার্ড নম্বর',
   iPaid: 'এই অ্যাকাউন্টে পেমেন্ট পাঠিয়েছি',
+  showcaseKicker: 'নতুন সিজন',
+  showcaseTitle1: 'আত্মবিশ্বাস পরুন।',
+  showcaseTitle2: 'নিজের স্টাইল গড়ুন।',
+  shopNow: 'এখনই কিনুন',
 }
 
 const dict = { en, bn }
