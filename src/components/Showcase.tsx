@@ -18,9 +18,13 @@ function mix(hex: string, target: number, amount: number) {
   return `rgb(${f(r)}, ${f(g)}, ${f(b)})`
 }
 
-function isLight(hex: string) {
+function luminance(hex: string) {
   const { r, g, b } = hexToRgb(hex)
-  return (r * 299 + g * 587 + b * 114) / 1000 > 150
+  return (r * 299 + g * 587 + b * 114) / 1000
+}
+
+function isLight(hex: string) {
+  return luminance(hex) > 150
 }
 
 const ALL = '__all__'
@@ -98,10 +102,11 @@ export function Showcase({ seconds = 6 }: { seconds?: number }) {
   }
 
   const light = isLight(hex)
+  const veryDark = luminance(hex) < 40
   const style = {
     '--sc-deep': mix(hex, 0, light ? 0.86 : 0.82),
-    '--sc-mid': mix(hex, 0, light ? 0.68 : 0.55),
-    '--sc-glow': light ? mix(hex, 0, 0.42) : mix(hex, 255, 0.18),
+    '--sc-mid': veryDark ? mix(hex, 255, 0.16) : mix(hex, 0, light ? 0.68 : 0.55),
+    '--sc-glow': light ? mix(hex, 0, 0.42) : mix(hex, 255, veryDark ? 0.3 : 0.18),
     '--sc-accent': light ? mix(hex, 255, 0.55) : mix(hex, 255, 0.45),
     '--sc-rx': `${tilt.y}deg`,
     '--sc-ry': `${tilt.x}deg`,

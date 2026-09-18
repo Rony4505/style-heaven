@@ -382,6 +382,7 @@ img { max-width: 100%; display: block; }
 .sc-sub {
   margin: 4px 0 0;
   max-width: 34ch;
+  min-height: calc(3 * 1.6em);
   color: #cbbfa9;
   font-size: 14px;
   line-height: 1.6;
@@ -393,6 +394,8 @@ img { max-width: 100%; display: block; }
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  align-content: flex-start;
+  min-height: 142px;
 }
 .sc-rail button {
   width: 54px;
